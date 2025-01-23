@@ -1,18 +1,15 @@
 using BepInEx;
 using R2API;
 
+
 using RoR2;
-using RoR2.UI;
 
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using UnityEngine;
-using UnityEngine.AddressableAssets;
-using UnityEngine.Networking;
 
-using static System.StringComparison;
-using static RoR2.RoR2Content;
+using UnityEngine;
+using UnityEngine.Networking;
 using BepInEx.Logging;
 
 namespace ExamplePlugin
@@ -33,7 +30,7 @@ namespace ExamplePlugin
     [BepInDependency(LanguageAPI.PluginGUID)]
 
     // This attribute is required, and lists metadata for your plugin.
-    [BepInPlugin("gimmeguid", "Gimme", "0.0.2")]
+    [BepInPlugin("com.nulldev.ror2.gimme", "Gimme", "0.0.3")]
 
     // This is the main declaration of our plugin class.
     // BepInEx searches for all classes inheriting from BaseUnityPlugin to initialize on startup.
@@ -51,13 +48,26 @@ namespace ExamplePlugin
             // ISSUE: method pointer
             On.RoR2.Console.RunCmd += Console_RunCmd;
             On.RoR2.UserAchievementManager.GrantAchievement += UserAchievementManager_GrantAchievement;
+            On.RoR2.AchievementGranter.CallRpcGrantAchievement += AchievementGranter_CallRpcGrantAchievement;
+            On.RoR2.AchievementGranter.RpcGrantAchievement += AchievementGranter_RpcGrantAchievement;
 
             log.LogInfo("Gimme loaded successfully.");
         }
 
-        private static void UserAchievementManager_GrantAchievement(On.RoR2.UserAchievementManager.orig_GrantAchievement orig, UserAchievementManager self, AchievementDef achievementDef)
+        private static void AchievementGranter_CallRpcGrantAchievement(On.RoR2.AchievementGranter.orig_CallRpcGrantAchievement orig, AchievementGranter self, string achievementName)
         {
             /* Prevent achievements since this plugin makes it really easy to get them. */
+            log.LogDebug("[AchievementGranter::CallRpcGrantAchievement] Discarding the following achievement: " + achievementName);
+        }
+
+        private static void AchievementGranter_RpcGrantAchievement(On.RoR2.AchievementGranter.orig_RpcGrantAchievement orig, AchievementGranter self, string achievementName)
+        {
+            log.LogDebug("[AchievementGranter::RpcGrantAchievement] Discarding the following achievement: " + achievementName);
+
+        }
+
+        private static void UserAchievementManager_GrantAchievement(On.RoR2.UserAchievementManager.orig_GrantAchievement orig, UserAchievementManager self, AchievementDef achievementDef)
+        {
             log.LogDebug("[UserAchievementManager::GrantAchievement] Discarding the following achievement: " + achievementDef);
         }
 
@@ -79,7 +89,7 @@ namespace ExamplePlugin
                     string[] source = str1.Split(' ');
                     string str2 = ((IEnumerable<string>)source).FirstOrDefault<string>().Substring(1);
                     string[] array = ((IEnumerable<string>)source).Skip<string>(1).ToArray<string>();
-                    if (str2.ToUpperInvariant() == "GIVE" || str2.ToUpperInvariant() == "G" || str2.ToUpperInvariant() == "GIVEITEM")
+                    if (str2.ToUpperInvariant() == "GIMME" || str2.ToUpperInvariant() == "GI")
                     {
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
                         {
@@ -90,7 +100,7 @@ namespace ExamplePlugin
                         {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
-                                baseToken = "<color=#AAE6F0>/g itemname playername [amount]\nWill transfer items from sender's inventory into playername's inventory"
+                                baseToken = "<color=#AAE6F0>/gi itemname playername [amount]\n/gimme itemname playername [amount]\nWill transfer items from sender's inventory into playername's inventory"
                             });
                         }
                         else
@@ -120,6 +130,30 @@ namespace ExamplePlugin
         public const string player = "<color=#AAE6F0>";
         public const string error = "<color=#FF8282>";
         public const string bold = "<color=#ff4646>";
+
+        private static readonly Dictionary<ItemDef, int> RESTRICTED_ITEMS = new Dictionary<ItemDef, int>();
+
+        static Give()
+        {
+            /* Too many Shaped Glass will put characters into a respawn loop, which eventually will explode their session */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.LunarDagger, 64);
+            /* 1024 Bottled Chaos makes my game lag (on 2017-era hardware) for a while */
+            RESTRICTED_ITEMS.Add(DLC1Content.Items.RandomEquipmentTrigger, 128);
+            /* Limit movement speed boosts to one hundered, otherwise you will literally hit world bounds instantly */
+            RESTRICTED_ITEMS.Add(DLC1Content.Items.AttackSpeedAndMoveSpeed, 100);
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.SprintBonus, 100);
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.Hoof, 100);
+            /* Limit the amount of Wax Quail's */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.JumpBoost, 10);
+            /* Limit jump heights with H3AD-5T V2 */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.FallBoots, 10);
+            /* Prevent instantenous equipment spam */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.AutoCastEquipment, 32);
+            RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfAttackSpeedHalfCooldowns, 8);
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.Talisman, 69);
+            /* Prevent literally being unable to move */
+            RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
+        }
 
         public static string Give_item(NetworkUser sender, string[] args, ManualLogSource log)
         {
@@ -172,12 +206,30 @@ namespace ExamplePlugin
                 }
             }
 
+            if (RESTRICTED_ITEMS.ContainsKey(itemDef))
+            {
+                /* Check if we are about to give too much to a player and if so, don't do it */
+                int currentAmount = inventory2.GetItemCount(itemDef);
+                int limit = RESTRICTED_ITEMS[itemDef];
+
+                if (num >= limit)
+                {
+                    return "<color=#FF8282>Too much of item requested, the limit is '" + limit + "'.</color>";
+                }
+
+                if (currentAmount + num >= limit)
+                {
+                    return "<color=#FF8282>Player already has too much of item.</color>";
+                }
+            }
+
             if (num > 1)
                 coloredString1 += Util.GenerateColoredString("s", PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
+
             if (num > 1024)
                 num = 1024;
             inventory2.GiveItem(itemIndex, num);
-            
+
             if (inventory1 != inventory2)
                 inventory1.RemoveItem(itemIndex, num);
 
@@ -231,6 +283,13 @@ namespace ExamplePlugin
                 }
             }
             return (EquipmentIndex)(-1);
+        }
+
+        private static readonly System.Random rng = new System.Random();
+
+        internal static NetworkUser GetRandomUser()
+        {
+            return NetworkUser.readOnlyInstancesList[rng.Next(NetworkUser.readOnlyInstancesList.Count)];
         }
 
         internal static NetworkUser GetNetUserFromString(string name)
