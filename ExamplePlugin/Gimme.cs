@@ -33,7 +33,7 @@ namespace ExamplePlugin
     [BepInDependency(LanguageAPI.PluginGUID)]
 
     // This attribute is required, and lists metadata for your plugin.
-    [BepInPlugin("gimmeguid", "Gimme", "0.0.1")]
+    [BepInPlugin("gimmeguid", "Gimme", "0.0.2")]
 
     // This is the main declaration of our plugin class.
     // BepInEx searches for all classes inheriting from BaseUnityPlugin to initialize on startup.
@@ -50,14 +50,15 @@ namespace ExamplePlugin
 
             // ISSUE: method pointer
             On.RoR2.Console.RunCmd += Console_RunCmd;
- //           On.RoR2.UserAchievementManager.GrantAchievement += UserAchievementManager_GrantAchievement;
+            On.RoR2.UserAchievementManager.GrantAchievement += UserAchievementManager_GrantAchievement;
 
             log.LogInfo("Gimme loaded successfully.");
         }
 
-        private static void UserAchievementManager_GrantAchievement(AchievementDef achievementDef)
+        private static void UserAchievementManager_GrantAchievement(On.RoR2.UserAchievementManager.orig_GrantAchievement orig, UserAchievementManager self, AchievementDef achievementDef)
         {
             /* Prevent achievements since this plugin makes it really easy to get them. */
+            log.LogDebug("[UserAchievementManager::GrantAchievement] Discarding the following achievement: " + achievementDef);
         }
 
         private static void Console_RunCmd(On.RoR2.Console.orig_RunCmd orig, RoR2.Console self, RoR2.Console.CmdSender sender, string concommandName, List<string> userArgs)
