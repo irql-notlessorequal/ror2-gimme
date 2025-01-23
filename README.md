@@ -11,8 +11,10 @@ If you wish to get your achievements, **MAKE SURE THAT THIS MOD IS DISABLED**.
 # Usage
 
 ```
-/g [ITEM] [PLAYER] {QUANTITY}
-/give [ITEM] [PLAYER] {QUANTITY}
+/gi [ITEM] [PLAYER] {QUANTITY}
+/gr {ITEM} {QUANTITY}
+/gimme [ITEM] [PLAYER] {QUANTITY}
+/gimmerandom  {ITEM} {QUANTITY}
 ```
 
 where:

@@ -11,8 +11,9 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
 using BepInEx.Logging;
+using System.IO;
 
-namespace ExamplePlugin
+namespace Gimme
 {
     // This is an example plugin that can be put in
     // BepInEx/plugins/ExamplePlugin/ExamplePlugin.dll to test out.
@@ -30,7 +31,7 @@ namespace ExamplePlugin
     [BepInDependency(LanguageAPI.PluginGUID)]
 
     // This attribute is required, and lists metadata for your plugin.
-    [BepInPlugin("com.nulldev.ror2.gimme", "Gimme", "0.0.3")]
+    [BepInPlugin("com.nulldev.ror2.gimme", "Gimme", "0.0.4")]
 
     // This is the main declaration of our plugin class.
     // BepInEx searches for all classes inheriting from BaseUnityPlugin to initialize on startup.
@@ -50,6 +51,7 @@ namespace ExamplePlugin
             On.RoR2.UserAchievementManager.GrantAchievement += UserAchievementManager_GrantAchievement;
             On.RoR2.AchievementGranter.CallRpcGrantAchievement += AchievementGranter_CallRpcGrantAchievement;
             On.RoR2.AchievementGranter.RpcGrantAchievement += AchievementGranter_RpcGrantAchievement;
+            On.RoR2.AchievementGranter.InvokeRpcRpcGrantAchievement += AchievementGranter_InvokeRpcRpcGrantAchievement;
 
             log.LogInfo("Gimme loaded successfully.");
         }
@@ -63,7 +65,11 @@ namespace ExamplePlugin
         private static void AchievementGranter_RpcGrantAchievement(On.RoR2.AchievementGranter.orig_RpcGrantAchievement orig, AchievementGranter self, string achievementName)
         {
             log.LogDebug("[AchievementGranter::RpcGrantAchievement] Discarding the following achievement: " + achievementName);
+        }
 
+        private static void AchievementGranter_InvokeRpcRpcGrantAchievement(On.RoR2.AchievementGranter.orig_InvokeRpcRpcGrantAchievement orig, NetworkBehaviour obj, NetworkReader reader)
+        {
+            log.LogDebug("[AchievementGranter::InvokeRpcRpcGrantAchievement] Call discarded. ");
         }
 
         private static void UserAchievementManager_GrantAchievement(On.RoR2.UserAchievementManager.orig_GrantAchievement orig, UserAchievementManager self, AchievementDef achievementDef)
@@ -100,7 +106,7 @@ namespace ExamplePlugin
                         {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
-                                baseToken = "<color=#AAE6F0>/gi itemname playername [amount]\n/gimme itemname playername [amount]\nWill transfer items from sender's inventory into playername's inventory"
+                                baseToken = "<color=#AAE6F0>/gi itemname playername [amount]\n/gimme itemname playername [amount]\n/gr [itemname] [amount]\n/gimmerandom [itemname] [amount]\nWill give items into playername's inventory"
                             });
                         }
                         else
@@ -118,8 +124,38 @@ namespace ExamplePlugin
                                 });
                         }
                     }
+                    else if (str2.ToUpperInvariant() == "GR" || str2.ToUpperInvariant() == "GIMMERANDOM")
+                    {
+                        Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
+                        {
+                            sender = ((Component)sender.networkUser).gameObject,
+                            text = str1
+                        });
+
+                        string str5 = Give.Give_item_random(sender.networkUser, array, log);
+                        if (str5 == null)
+                            Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
+                            {
+                                baseToken = "<color=#ff4646>ERROR: null output</color>"
+                            });
+                        else
+                            Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
+                            {
+                                baseToken = str5
+                            });
+                    }
+                    else if (str2.ToUpperInvariant() == "GIMME_DUMP_ITEMS")
+                    {
+                        Give.Dump_items();
+                        Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
+                        {
+                            baseToken = "Gimme wrote a gimme_items.txt into your game's directory."
+                        });
+                    }
                     else
+                    {
                         orig.Invoke(self, sender, concommandName, userArgs);
+                    }
                 }
             }
         }
@@ -139,7 +175,7 @@ namespace ExamplePlugin
             RESTRICTED_ITEMS.Add(RoR2Content.Items.LunarDagger, 64);
             /* 1024 Bottled Chaos makes my game lag (on 2017-era hardware) for a while */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.RandomEquipmentTrigger, 128);
-            /* Limit movement speed boosts to one hundered, otherwise you will literally hit world bounds instantly */
+            /* Limit movement speed boosts to one hundred, otherwise you will literally hit world bounds instantly */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.AttackSpeedAndMoveSpeed, 100);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.SprintBonus, 100);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Hoof, 100);
@@ -147,12 +183,41 @@ namespace ExamplePlugin
             RESTRICTED_ITEMS.Add(RoR2Content.Items.JumpBoost, 10);
             /* Limit jump heights with H3AD-5T V2 */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.FallBoots, 10);
-            /* Prevent instantenous equipment spam */
+            /* Prevent instantaenous equipment spam */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.AutoCastEquipment, 32);
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfAttackSpeedHalfCooldowns, 8);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Talisman, 69);
             /* Prevent literally being unable to move */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
+        }
+
+        public static string Give_item_random(NetworkUser sender, string[] args, ManualLogSource log)
+        {
+            NetworkUserId id = sender.id;
+            Inventory inventory1 = sender != null ? sender.master.inventory : (Inventory)null;
+
+            NetworkUser netUserFromString = StringParsers.GetRandomUser();
+
+            Inventory inventory2 = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
+            if (!inventory1 || !inventory2)
+                return "<color=#ff4646>ERROR: null inventory</color>";
+
+            int num = 1;
+
+            if (args.Length == 2)
+            {
+                if (!System.Int32.TryParse(args[1], out num))
+                {
+                    return "<color=#FF8282>Invalid quantity argument!</color>";
+                }
+            }
+
+            return _provide_item(sender, inventory1, inventory2, netUserFromString, num, args, log);
+        }
+
+        private static string last(string[] arr)
+        {
+            return arr[arr.Length - 1];
         }
 
         public static string Give_item(NetworkUser sender, string[] args, ManualLogSource log)
@@ -168,23 +233,43 @@ namespace ExamplePlugin
             if (!inventory1 || !inventory2)
                 return "<color=#ff4646>ERROR: null inventory</color>";
 
-            /*if (inventory1 == inventory2)
-                return "<color=#FF8282>Target can not be the sender</color>";*/
+            int num = 1;
 
+            if (args.Length == 3)
+            {
+                if (!System.Int32.TryParse(args[2], out num))
+                {
+                    return "<color=#FF8282>Invalid quantity argument!</color>";
+                }
+            }
+
+            return _provide_item(sender, inventory1, inventory2, netUserFromString, num, args, log);
+        }
+
+        public static string _provide_item(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string[] args, ManualLogSource log)
+        {
             string str1 = "<color=#AAE6F0>" + netUserFromString.masterController.GetDisplayName() + "</color>";
             string str2 = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
             EquipmentIndex equipmentIndex = EquipmentIndex.None;
 
             ItemIndex itemIndex = ItemIndex.None;
-            if (args[0].ToLower() == "e" || args[0].ToLower() == "equip" || args[0].ToLower() == "equipment")
-            {
-                equipmentIndex = inventory1.GetEquipmentIndex();
-                if (equipmentIndex == EquipmentIndex.None)
-                    return "<color=#FF8282>Sender does not have an </color><color=#ff7d00>equipment</color>";
-            }
 
-            if (itemIndex == ItemIndex.None)
-                itemIndex = StringParsers.FindItem(args[0], log);
+            if (args.Length == 0)
+            {
+                itemIndex = StringParsers.RandomItem();
+            }
+            else
+            {
+                if (args[0].ToLower() == "e" || args[0].ToLower() == "equip" || args[0].ToLower() == "equipment")
+                {
+                    equipmentIndex = inventory1.GetEquipmentIndex();
+                    if (equipmentIndex == EquipmentIndex.None)
+                        return "<color=#FF8282>Sender does not have an </color><color=#ff7d00>equipment</color>";
+                }
+
+                if (itemIndex == ItemIndex.None)
+                    itemIndex = StringParsers.FindItem(args[0], log);
+            }
 
             if (itemIndex == ItemIndex.None)
                 return "<color=#FF8282>Could not find specified </color>item<color=#FF8282> '<color=#ff4646>" + args[0] + "</color>'</color>";
@@ -196,16 +281,6 @@ namespace ExamplePlugin
             if (itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed)
                 return coloredString1 + "<color=#FF8282> is not dropable</color>";
 
-            int num = 1;
-
-            if (args.Length == 3)
-            {
-                if (!System.Int32.TryParse(args[2], out num))
-                {
-                    return "<color=#FF8282>Invalid quantity argument!</color>";
-                }
-            }
-
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
             {
                 /* Check if we are about to give too much to a player and if so, don't do it */
@@ -214,7 +289,7 @@ namespace ExamplePlugin
 
                 if (num >= limit)
                 {
-                    return "<color=#FF8282>Too much of item requested, the limit is '" + limit + "'.</color>";
+                    return "<color=#FF8282>Too much of item requested, the limit is '" + (limit - 1) + "'.</color>";
                 }
 
                 if (currentAmount + num >= limit)
@@ -234,6 +309,37 @@ namespace ExamplePlugin
                 inventory1.RemoveItem(itemIndex, num);
 
             return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1, (object)str1);
+        }
+
+        internal static void Dump_items()
+        {
+            using (StreamWriter text = new StreamWriter("gimme_items.txt"))
+            {
+                text.WriteLine("// Gimme FORMAT_ONE");
+                foreach (ItemIndex item in ItemCatalog.allItems)
+                {
+                    ItemDef itemDefinition = ItemCatalog.GetItemDef(item);
+                    var localizedName = Language.GetString(itemDefinition.nameToken);
+
+                    /* So fugly... */
+                    string str = "";
+
+                    str += "{index:";
+                    str += item;
+
+                    str += ",tier:";
+                    str += ((int)itemDefinition.tier);
+
+                    str += ",nameToken:\"";
+                    str += itemDefinition.name;
+
+                    str += "\",localizedName:\"";
+                    str += localizedName;
+                    str += "\"}";
+
+                    text.WriteLine(str);
+                }
+            }
         }
     }
 
@@ -323,6 +429,15 @@ namespace ExamplePlugin
         internal static string ReformatString(string input)
         {
             return Regex.Replace(input, "[ '_.,-]", string.Empty).ToLower();
+        }
+
+        internal static ItemIndex RandomItem()
+        {
+            var idx = rng.Next(ItemCatalog.allItems.Count());
+
+            return ItemCatalog.allItems.AsParallel()
+                .DefaultIfEmpty(ItemIndex.None)
+                .ElementAtOrDefault(idx);
         }
 
         internal static ItemIndex FindItem(string item, ManualLogSource log)
