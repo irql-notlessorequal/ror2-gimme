@@ -1,7 +1,6 @@
 using BepInEx;
 using R2API;
 
-
 using RoR2;
 
 using System.Collections.Generic;
@@ -15,29 +14,9 @@ using System.IO;
 
 namespace Gimme
 {
-    // This is an example plugin that can be put in
-    // BepInEx/plugins/ExamplePlugin/ExamplePlugin.dll to test out.
-    // It's a small plugin that adds a relatively simple item to the game,
-    // and gives you that item whenever you press F2.
-
-    // This attribute specifies that we have a dependency on a given BepInEx Plugin,
-    // We need the R2API ItemAPI dependency because we are using for adding our item to the game.
-    // You don't need this if you're not using R2API in your plugin,
-    // it's just to tell BepInEx to initialize R2API before this plugin so it's safe to use R2API.
     [BepInDependency(ItemAPI.PluginGUID)]
-
-    // This one is because we use a .language file for language tokens
-    // More info in https://risk-of-thunder.github.io/R2Wiki/Mod-Creation/Assets/Localization/
     [BepInDependency(LanguageAPI.PluginGUID)]
-
-    // This attribute is required, and lists metadata for your plugin.
-    [BepInPlugin("com.nulldev.ror2.gimme", "Gimme", "0.0.4")]
-
-    // This is the main declaration of our plugin class.
-    // BepInEx searches for all classes inheriting from BaseUnityPlugin to initialize on startup.
-    // BaseUnityPlugin itself inherits from MonoBehaviour,
-    // so you can use this as a reference for what you can declare and use in your plugin class
-    // More information in the Unity Docs: https://docs.unity3d.com/ScriptReference/MonoBehaviour.html
+    [BepInPlugin("com.nulldev.ror2.gimme", "Gimme", "0.0.5")]
     public class Main : BaseUnityPlugin
     {
         internal static new ManualLogSource log { get; set; }
@@ -48,33 +27,14 @@ namespace Gimme
 
             // ISSUE: method pointer
             On.RoR2.Console.RunCmd += Console_RunCmd;
-            On.RoR2.UserAchievementManager.GrantAchievement += UserAchievementManager_GrantAchievement;
-            On.RoR2.AchievementGranter.CallRpcGrantAchievement += AchievementGranter_CallRpcGrantAchievement;
-            On.RoR2.AchievementGranter.RpcGrantAchievement += AchievementGranter_RpcGrantAchievement;
-            On.RoR2.AchievementGranter.InvokeRpcRpcGrantAchievement += AchievementGranter_InvokeRpcRpcGrantAchievement;
+            On.RoR2.Achievements.BaseAchievement.Grant += AchievementBlocker;
 
             log.LogInfo("Gimme loaded successfully.");
         }
 
-        private static void AchievementGranter_CallRpcGrantAchievement(On.RoR2.AchievementGranter.orig_CallRpcGrantAchievement orig, AchievementGranter self, string achievementName)
+        private static void AchievementBlocker(On.RoR2.Achievements.BaseAchievement.orig_Grant orig, RoR2.Achievements.BaseAchievement self)
         {
-            /* Prevent achievements since this plugin makes it really easy to get them. */
-            log.LogDebug("[AchievementGranter::CallRpcGrantAchievement] Discarding the following achievement: " + achievementName);
-        }
-
-        private static void AchievementGranter_RpcGrantAchievement(On.RoR2.AchievementGranter.orig_RpcGrantAchievement orig, AchievementGranter self, string achievementName)
-        {
-            log.LogDebug("[AchievementGranter::RpcGrantAchievement] Discarding the following achievement: " + achievementName);
-        }
-
-        private static void AchievementGranter_InvokeRpcRpcGrantAchievement(On.RoR2.AchievementGranter.orig_InvokeRpcRpcGrantAchievement orig, NetworkBehaviour obj, NetworkReader reader)
-        {
-            log.LogDebug("[AchievementGranter::InvokeRpcRpcGrantAchievement] Call discarded. ");
-        }
-
-        private static void UserAchievementManager_GrantAchievement(On.RoR2.UserAchievementManager.orig_GrantAchievement orig, UserAchievementManager self, AchievementDef achievementDef)
-        {
-            log.LogDebug("[UserAchievementManager::GrantAchievement] Discarding the following achievement: " + achievementDef);
+            log.LogDebug("[Gimme::AchievementBlocker] Preventing the following achievement: " + self);
         }
 
         private static void Console_RunCmd(On.RoR2.Console.orig_RunCmd orig, RoR2.Console self, RoR2.Console.CmdSender sender, string concommandName, List<string> userArgs)
@@ -279,7 +239,9 @@ namespace Gimme
             string coloredString1 = Util.GenerateColoredString(Language.GetString(itemDef.nameToken), PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
 
             if (itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed)
+            {
                 return coloredString1 + "<color=#FF8282> is not dropable</color>";
+            }
 
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
             {
@@ -299,16 +261,31 @@ namespace Gimme
             }
 
             if (num > 1)
+            {
                 coloredString1 += Util.GenerateColoredString("s", PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
+            }
 
+            /**
+             * Limit to 1024 batches, no sane being is going to need more than that.
+             */
             if (num > 1024)
+            {
                 num = 1024;
+            }
+
             inventory2.GiveItem(itemIndex, num);
 
             if (inventory1 != inventory2)
                 inventory1.RemoveItem(itemIndex, num);
 
-            return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1, (object)str1);
+            if (str1.Equals(str2))
+            {
+                return string.Format("{0}{1} gave themselves {2} {3}</color>", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1);
+            }
+            else
+            {
+                return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1, (object)str1);
+            }
         }
 
         internal static void Dump_items()
