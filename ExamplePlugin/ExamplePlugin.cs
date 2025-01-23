@@ -267,33 +267,13 @@ namespace ExamplePlugin
 
         internal static ItemIndex FindItem(string item, ManualLogSource log)
         {
-            ItemCatalog.allItems.AsParallel()
+            return ItemCatalog.allItems.AsParallel()
                 .Where((candidate) =>
                 {
                     ItemDef LocalizedString = ItemCatalog.GetItemDef(candidate);
                     return Language.GetString(LocalizedString.nameToken).IndexOf(item, System.StringComparison.OrdinalIgnoreCase) >= 0;
                 })
-                .FirstOrDefault();
-
-            ItemIndex output = ItemCatalog.FindItemIndex(item);
-
-            if (output == ItemIndex.None)
-            {
-                List<KeyValuePair<string, ItemIndex>> list = ItemCatalog.itemNameToIndex.ToList();
-
-                for (int num = list.Count - 1; num >= 0; num--)
-                {
-                    KeyValuePair<string, ItemIndex> dict = list[num];
-                    ItemDef LocalizedString = ItemCatalog.GetItemDef(dict.Value);
-
-                    if (Language.GetString(LocalizedString.nameToken).IndexOf(item, System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        return dict.Value;
-                    }
-                }
-            }
-
-            return output;
+                .FirstOrDefault(null);
         }
     }
 }
