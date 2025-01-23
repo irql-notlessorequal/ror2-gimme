@@ -273,7 +273,8 @@ namespace ExamplePlugin
                     ItemDef LocalizedString = ItemCatalog.GetItemDef(candidate);
                     return Language.GetString(LocalizedString.nameToken).IndexOf(item, System.StringComparison.OrdinalIgnoreCase) >= 0;
                 })
-                .FirstOrDefault(null);
+                .DefaultIfEmpty(ItemIndex.None)
+                .First();
         }
     }
 }
