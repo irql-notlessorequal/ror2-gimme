@@ -51,6 +51,7 @@ namespace Gimme
 
         internal static ManualLogSource log { get; set; }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Not needed.")]
         private void Awake()
         {
             log = base.Logger;
@@ -100,17 +101,21 @@ namespace Gimme
                         }
                         else
                         {
-                            string response = Give.GiveItem(sender.networkUser, arguments, log);
+                            string response = GimmeLogic.GiveItem(sender.networkUser, arguments, log);
                             if (response == null)
+                            {
                                 Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                                 {
                                     baseToken = "<color=#ff4646>ERROR: null output</color>"
                                 });
+                            }
                             else
+                            {
                                 Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                                 {
                                     baseToken = response
                                 });
+                            }
                         }
                     }
                     else if (command.ToUpperInvariant() == "GR" || command.ToUpperInvariant() == "GIMMERANDOM")
@@ -121,21 +126,25 @@ namespace Gimme
                             text = chatMessage
                         });
 
-                        string response = Give.GiveRandomItem(sender.networkUser, arguments, log);
+                        string response = GimmeLogic.GiveRandomItem(sender.networkUser, arguments, log);
                         if (response == null)
+                        {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
                                 baseToken = "<color=#ff4646>ERROR: null output</color>"
                             });
+                        }
                         else
+                        {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
                                 baseToken = response
                             });
+                        }
                     }
                     else if (command.ToUpperInvariant() == "GIMME_DUMP_ITEMS")
                     {
-                        Give.DumpItems();
+                        GimmeLogic.DumpItems();
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                         {
                             baseToken = "Gimme wrote a gimme_items.txt into your game's directory."
@@ -149,7 +158,7 @@ namespace Gimme
             }
         }
     }
-    internal class Give
+    internal class GimmeLogic
     {
         public const string green = "<color=#96EBAA>";
         public const string player = "<color=#AAE6F0>";
@@ -158,7 +167,7 @@ namespace Gimme
 
         private static readonly Dictionary<ItemDef, int> RESTRICTED_ITEMS = new Dictionary<ItemDef, int>();
 
-        static Give()
+        static GimmeLogic()
         {
             /* Too many Shaped Glass will put characters into a respawn loop, which eventually will explode their session */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.LunarDagger, 64);
@@ -240,7 +249,7 @@ namespace Gimme
                 do
                 {
                     itemIndex = StringParsers.RandomItem();
-                    if (IsNotDropable(itemIndex))
+                    if (IsNotDroppable(itemIndex))
                         continue;
 
                     break;
@@ -266,9 +275,9 @@ namespace Gimme
             PickupIndex pickupIndex1 = PickupCatalog.FindPickupIndex(itemIndex);
             string coloredString1 = Util.GenerateColoredString(Language.GetString(itemDef.nameToken), PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
 
-            if (IsNotDropable(itemDef))
+            if (IsNotDroppable(itemDef))
             {
-                return coloredString1 + "<color=#FF8282> is not dropable</color>";
+                return coloredString1 + "<color=#FF8282> is not droppable</color>";
             }
 
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
@@ -324,12 +333,12 @@ namespace Gimme
             return StringParsers.GetNetUserFromString(args[1]);
         }
 
-        internal static bool IsNotDropable(ItemIndex itemIndex)
+        internal static bool IsNotDroppable(ItemIndex itemIndex)
         {
-            return IsNotDropable(ItemCatalog.GetItemDef(itemIndex));
+            return IsNotDroppable(ItemCatalog.GetItemDef(itemIndex));
         }
 
-        internal static bool IsNotDropable(ItemDef itemDef)
+        internal static bool IsNotDroppable(ItemDef itemDef)
         {
             return itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed;
         }
