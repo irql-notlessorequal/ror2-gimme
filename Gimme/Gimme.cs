@@ -47,7 +47,7 @@ namespace Gimme
     {
         private const string GUID = "com.nulldev.ror2.gimme";
         private const string NAME = "Gimme";
-        private const string VERSION = "0.0.6";
+        private const string VERSION = "1.0.0";
 
         internal static ManualLogSource log { get; set; }
 
