@@ -19,18 +19,14 @@ If you wish to get your achievements, **MAKE SURE THAT THIS MOD IS DISABLED**.
 
 where:
 - `[ITEM]` is a single word (no spaces!!!), you can use parts of an item name like "Syringe" for "Soldier's Syringe", case insenstive
-- `[PLAYER]` for a ingame player.
-- `{QUANTITY}` the amount to give, integer between one and 1024, optional.
+- `[PLAYER]` for a player, not required when playing solo.
+- `{QUANTITY}` the amount to give, a number between one and 1024, optional.
 
 # FAQ
 
 ## Why?
 
 funny
-
-## Why block achievements?
-
-This mod makes it **way** too easy to get them, I'm talking one command for some of them.
 
 ## Why do I see "Too much of item requested"...
 
@@ -45,6 +41,12 @@ The achievement blocker wouldn't work then, see above.
 ## Can I spawn DLC items in without owning the DLC?
 
 No.
+
+## Can you give other players (in your lobby) items?
+
+Yes.
+
+This is intentional :-)
 
 # Credits
 
