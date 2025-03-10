@@ -22,6 +22,14 @@ where:
 - `[PLAYER]` for a player, not required when playing solo.
 - `{QUANTITY}` the amount to give, a number between one and 1024, optional.
 
+As of version 1.0.1, the argument parser is much more flexible.
+The following combos are now permitted:
+```
+/gi Tougher 255 <-- Gives 255 Tougher Times to self (solo only)
+/gi Tougher 21 John <-- Gives 21 Tougher Times to player "John"
+/gi Tougher John 21 <-- Same as above.
+```
+
 # FAQ
 
 ## Why?
@@ -42,11 +50,21 @@ The achievement blocker wouldn't work then, see above.
 
 No.
 
+(the game prevents doing so meaning I don't have to code a DLC check)
+
 ## Can you give other players (in your lobby) items?
 
 Yes.
 
 This is intentional :-)
+
+## Why can't I spawn in some items?
+
+For some reason, player equipment isn't available in `ItemCatalog.allItems`.
+
+I may fix this in the future.
+
+There are some other items are not available since they are internal items and their functionality is not known.
 
 # Credits
 

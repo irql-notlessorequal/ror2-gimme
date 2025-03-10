@@ -51,8 +51,7 @@ namespace Gimme
 
         internal static ManualLogSource log { get; set; }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Not needed.")]
-        private void Awake()
+        public void Awake()
         {
             log = base.Logger;
 
@@ -92,7 +91,7 @@ namespace Gimme
                             sender = ((Component)sender.networkUser).gameObject,
                             text = chatMessage
                         });
-                        if (arguments.Length < 2 || arguments[0] == "" || arguments[0].ToUpperInvariant() == "HELP")
+                        if (arguments.Length < 1 || arguments[0] == "" || arguments[0].ToUpperInvariant() == "HELP")
                         {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
@@ -158,17 +157,54 @@ namespace Gimme
             }
         }
     }
+
+    /**
+     * These items are internal to the game, you never get to see them in actual play.
+     */
+    internal enum InternalItemNames
+    {
+        AA_CANNON = 0,
+        AA_ARMOR = 1,
+        BOOST_ATTACK_SPEED = 23,
+        BOOST_EQUIPMENT_RECHARGE = 25,
+        CONVERT_CRIT_CHANCE_TO_CRIT_DAMAGE = 35,
+        CRIPPLE_WARD_ON_LEVEL = 37,
+        DRIZZLE_PLAYER_HELPER = 47,
+        DRONE_WEAPONS_BOOST = 49,
+        DRONE_WEAPONS_DISPLAY1 = 50,
+        DRONE_WEAPONS_DISPLAY2 = 51,
+        EMPOWER_ALWAYS = 53,
+        GHOST = 76,
+        GUMMY_CLONE_IDENTIFIER = 80,
+        HEALTH_DECAY = 88,
+        INVADING_DOPPELGANGER = 99,
+        LEMURIAN_HARNESS = 106,
+        LEVEL_BONUS = 107,
+        MAGE_ATTUNEMENT = 120,
+        MINION_LEASH = 124,
+        MONSOON_PLAYER_HELPER = 128,
+        PLANT_ON_HIT = 145,
+        PLASMA_CORE = 146,
+        TEMPEST_ON_KILL = 188,
+        WARCRY_ON_COMBAT = 200
+    }
+
     internal class GimmeLogic
     {
+        public const string RANDOM_ITEM = "#gimme-random";
+
         public const string green = "<color=#96EBAA>";
         public const string player = "<color=#AAE6F0>";
         public const string error = "<color=#FF8282>";
         public const string bold = "<color=#ff4646>";
 
         private static readonly Dictionary<ItemDef, int> RESTRICTED_ITEMS = new Dictionary<ItemDef, int>();
+        private static readonly Dictionary<int, int> ITEM_BLACKLIST = new Dictionary<int, int>();
 
         static GimmeLogic()
         {
+            /** Restricted items. */
+
             /* Too many Shaped Glass will put characters into a respawn loop, which eventually will explode their session */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.LunarDagger, 64);
             /* 1024 Bottled Chaos makes my game lag (on 2017-era hardware) for a while */
@@ -187,6 +223,39 @@ namespace Gimme
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Talisman, 69);
             /* Prevent literally being unable to move */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
+
+            /** Blocked items. */
+            /** Vanilla */
+            ITEM_BLACKLIST.Add((int)InternalItemNames.AA_CANNON, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.AA_ARMOR, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.BOOST_ATTACK_SPEED, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.BOOST_EQUIPMENT_RECHARGE, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.CRIPPLE_WARD_ON_LEVEL, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.DRIZZLE_PLAYER_HELPER, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.GHOST, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.HEALTH_DECAY, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.INVADING_DOPPELGANGER, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.LEVEL_BONUS, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.MONSOON_PLAYER_HELPER, 0);
+
+            /** DLC1 */
+            ITEM_BLACKLIST.Add((int)InternalItemNames.CONVERT_CRIT_CHANCE_TO_CRIT_DAMAGE, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.DRONE_WEAPONS_BOOST, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.DRONE_WEAPONS_DISPLAY1, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.DRONE_WEAPONS_DISPLAY2, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.GUMMY_CLONE_IDENTIFIER, 0);
+
+            /** DLC2 */
+            ITEM_BLACKLIST.Add((int)InternalItemNames.LEMURIAN_HARNESS, 0);
+
+            /** Misc. (has no internal definition) */
+            ITEM_BLACKLIST.Add((int)InternalItemNames.EMPOWER_ALWAYS, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.MAGE_ATTUNEMENT, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.MINION_LEASH, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.PLANT_ON_HIT, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.PLASMA_CORE, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.TEMPEST_ON_KILL, 0);
+            ITEM_BLACKLIST.Add((int)InternalItemNames.WARCRY_ON_COMBAT, 0);
         }
 
         public static string GiveRandomItem(NetworkUser user, string[] args, ManualLogSource log)
@@ -195,61 +264,54 @@ namespace Gimme
             NetworkUser netUserFromString = StringParsers.GetRandomUser();
             Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
             if (!sender || !recipient)
-                return "<color=#ff4646>ERROR: null inventory</color>";
+                return "<color=#ff4646>ERROR: Unable to get player inventory!</color>";
 
-            int num = 1;
-            if (args.Length == 2)
+            if (!ParsePlayerArguments(user, args, out _, out _, out int quantity))
             {
-                if (!System.Int32.TryParse(args[1], out num))
-                {
-                    return "<color=#FF8282>Invalid quantity argument!</color>";
-                }
+                return "<color=#ff4646>ERROR: ParsePlayerArguments() returned FALSE!</color>";
             }
 
-            return ProvideItem(user, sender, recipient, netUserFromString, num, args, log);
+            return ProvideItem(user, sender, recipient, netUserFromString, quantity, RANDOM_ITEM, log);
         }
 
         public static string GiveItem(NetworkUser user, string[] args, ManualLogSource log)
         {
             Inventory sender = user != null ? user.master.inventory : (Inventory)null;
 
-            NetworkUser netUserFromString = GetPlayer(user, args);
-            if (netUserFromString == null)
-                return "<color=#FF8282>Could not find specified </color>player<color=#FF8282> '<color=#ff4646>" + args[1] + "</color>'</color>";
+            if (!ParsePlayerArguments(user, args, out string item, out NetworkUser netUserFromString, out int quantity))
+            {
+                if (args.Length != 2)
+                {
+                    return "<color=#FF8282>No player name specified!</color>";
+                }
+                else
+                {
+                    return "<color=#FF8282>Could not find specified </color>player<color=#FF8282> '<color=#ff4646>" + args[1] + "</color>'</color>";
+                }
+            }
 
             Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
             if (!sender || !recipient)
                 return "<color=#ff4646>ERROR: null inventory</color>";
 
-            int num = 1;
-
-            if (args.Length == 3)
-            {
-                if (!System.Int32.TryParse(args[2], out num))
-                {
-                    return "<color=#FF8282>Invalid quantity argument!</color>";
-                }
-            }
-
-            return ProvideItem(user, sender, recipient, netUserFromString, num, args, log);
+            return ProvideItem(user, sender, recipient, netUserFromString, quantity, item, log);
         }
 
-        internal static string ProvideItem(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string[] args, ManualLogSource log)
+        internal static string ProvideItem(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string item, ManualLogSource log)
         {
-            string str1 = "<color=#AAE6F0>" + netUserFromString.masterController.GetDisplayName() + "</color>";
-            string str2 = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
-            EquipmentIndex equipmentIndex = EquipmentIndex.None;
+            string recipientName = "<color=#AAE6F0>" + netUserFromString.masterController.GetDisplayName() + "</color>";
+            string senderName = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
             ItemIndex itemIndex = ItemIndex.None;
 
-            if (args.Length == 0)
+            if (item.Equals(RANDOM_ITEM))
             {
                 /**
-                 * Avoid trying to roll a non-droppable item.
-                 */
+                  * Avoid trying to roll a non-droppable item.
+                  */
                 do
                 {
                     itemIndex = StringParsers.RandomItem();
-                    if (IsNotDroppable(itemIndex))
+                    if (IsNotSpawnable(itemIndex))
                         continue;
 
                     break;
@@ -257,27 +319,20 @@ namespace Gimme
             }
             else
             {
-                if (args[0].ToLower() == "e" || args[0].ToLower() == "equip" || args[0].ToLower() == "equipment")
-                {
-                    equipmentIndex = inventory1.GetEquipmentIndex();
-                    if (equipmentIndex == EquipmentIndex.None)
-                        return "<color=#FF8282>Sender does not have an </color><color=#ff7d00>equipment</color>";
-                }
-
-                if (itemIndex == ItemIndex.None)
-                    itemIndex = StringParsers.FindItem(args[0], log);
+                itemIndex = StringParsers.FindItem(item, log);
             }
 
             if (itemIndex == ItemIndex.None)
-                return "<color=#FF8282>Could not find specified </color>item<color=#FF8282> '<color=#ff4646>" + args[0] + "</color>'</color>";
+                return "<color=#FF8282>Could not find specified </color>item<color=#FF8282> '<color=#ff4646>" + item + "</color>'</color>";
 
             ItemDef itemDef = ItemCatalog.GetItemDef(itemIndex);
             PickupIndex pickupIndex1 = PickupCatalog.FindPickupIndex(itemIndex);
-            string coloredString1 = Util.GenerateColoredString(Language.GetString(itemDef.nameToken), PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
+            string nameToken = Language.GetString(itemDef.nameToken);
+            string coloredString1 = Util.GenerateColoredString(nameToken, PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
 
-            if (IsNotDroppable(itemDef))
+            if (IsNotSpawnable(itemIndex))
             {
-                return coloredString1 + "<color=#FF8282> is not droppable</color>";
+                return "<color=#FF8282>Item cannot be spawned in.</color>";
             }
 
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
@@ -288,7 +343,7 @@ namespace Gimme
 
                 if (num >= limit)
                 {
-                    return "<color=#FF8282>Too much of item requested, the limit is '" + limit + "'.</color>";
+                    return "<color=#FF8282>Too much of an item requested, the limit is '" + limit + "'.</color>";
                 }
 
                 if (currentAmount + num >= limit)
@@ -297,7 +352,7 @@ namespace Gimme
                 }
             }
 
-            if (num > 1)
+            if (num > 1 && !nameToken.EndsWith("s"))
             {
                 coloredString1 += Util.GenerateColoredString("s", PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
             }
@@ -312,17 +367,70 @@ namespace Gimme
 
             inventory2.GiveItem(itemIndex, num);
 
-            if (str1.Equals(str2))
+            if (recipientName.Equals(senderName))
             {
-                return string.Format("{0}{1} gave themselves {2} {3}</color>", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1);
+                return string.Format("{0}{1} gave themselves {2} {3}</color>", (object)"<color=#96EBAA>", (object)senderName, (object)num, (object)coloredString1);
             }
             else
             {
-                return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1, (object)str1);
+                return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)senderName, (object)num, (object)coloredString1, (object)recipientName);
             }
         }
 
-        internal static NetworkUser GetPlayer(NetworkUser sender, string[] args)
+        internal static bool IsNotSpawnable(ItemIndex index)
+        {
+            return ITEM_BLACKLIST.ContainsKey((int)index);
+        }
+
+        internal static bool ParsePlayerArguments(NetworkUser sender, string[] args,
+            out string item, out NetworkUser netUserFromString, out int quantity)
+        {
+            /* Setup vars. */
+            item = null;
+            netUserFromString = null;
+            quantity = -1;
+
+            if (args == null || args.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (string s in args)
+            {
+                bool isNumber = int.TryParse(s, out _);
+
+                if (item == null && !isNumber)
+                {
+                    item = s;
+                    continue;
+                }
+
+                if (netUserFromString == null && !isNumber)
+                {
+                    netUserFromString = StringParsers.GetNetUserFromString(s);
+                    continue;
+                }
+
+                if (quantity == -1 && isNumber)
+                {
+                    if (int.TryParse(s, out quantity))
+                        continue;
+                }
+            }
+
+            /**
+             * If there's only one connection, it's probably a solo lobby.
+             */
+            if (NetworkUser.readOnlyInstancesList.Count == 1)
+                netUserFromString = sender;
+
+            if (quantity == -1)
+                quantity = 1;
+
+            return true;
+        }
+
+        internal static NetworkUser GetPlayer(NetworkUser sender, string arg)
         {
             /**
              * If there's only one connection, it's probably a solo lobby.
@@ -330,17 +438,7 @@ namespace Gimme
             if (NetworkUser.readOnlyInstancesList.Count == 1)
                 return sender;
 
-            return StringParsers.GetNetUserFromString(args[1]);
-        }
-
-        internal static bool IsNotDroppable(ItemIndex itemIndex)
-        {
-            return IsNotDroppable(ItemCatalog.GetItemDef(itemIndex));
-        }
-
-        internal static bool IsNotDroppable(ItemDef itemDef)
-        {
-            return itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed;
+            return StringParsers.GetNetUserFromString(arg);
         }
 
         internal static void DumpItems()
@@ -377,6 +475,8 @@ namespace Gimme
 
     internal sealed class StringParsers
     {
+        private static readonly System.Random rng = new System.Random();
+
         internal static ItemIndex FindItemInInventory(string input, Inventory inventory)
         {
             List<ItemIndex> itemAcquisitionOrder = inventory.itemAcquisitionOrder;
@@ -384,6 +484,7 @@ namespace Gimme
             {
                 return (ItemIndex)(-1);
             }
+
             input = ReformatString(input);
             if (int.TryParse(input, out var result))
             {
@@ -391,12 +492,16 @@ namespace Gimme
                 {
                     return (ItemIndex)(-1);
                 }
-                if (result == 0)
+                else if (result == 0)
                 {
                     return itemAcquisitionOrder[itemAcquisitionOrder.Count - 1];
                 }
-                return itemAcquisitionOrder[itemAcquisitionOrder.Count - result];
+                else
+                {
+                    return itemAcquisitionOrder[itemAcquisitionOrder.Count - result];
+                }
             }
+
             for (int num = itemAcquisitionOrder.Count - 1; num >= 0; num--)
             {
                 ItemDef itemDef = ItemCatalog.GetItemDef(itemAcquisitionOrder[num]);
@@ -422,8 +527,6 @@ namespace Gimme
             return (EquipmentIndex)(-1);
         }
 
-        private static readonly System.Random rng = new System.Random();
-
         internal static NetworkUser GetRandomUser()
         {
             return NetworkUser.readOnlyInstancesList[rng.Next(NetworkUser.readOnlyInstancesList.Count)];
@@ -431,6 +534,7 @@ namespace Gimme
 
         internal static NetworkUser GetNetUserFromString(string name)
         {
+            /* First Pass: Direct Match */
             if (int.TryParse(name, out var result))
             {
                 if (result < NetworkUser.readOnlyInstancesList.Count && result >= 0)
@@ -440,6 +544,7 @@ namespace Gimme
                 return null;
             }
             name = ReformatString(name);
+            /* Second Pass */
             foreach (NetworkUser readOnlyInstances in NetworkUser.readOnlyInstancesList)
             {
                 if (ReformatString(readOnlyInstances.userName).StartsWith(name))
@@ -447,9 +552,18 @@ namespace Gimme
                     return readOnlyInstances;
                 }
             }
+            /* Third Pass */
             foreach (NetworkUser readOnlyInstances2 in NetworkUser.readOnlyInstancesList)
             {
                 if (ReformatString(readOnlyInstances2.userName).Contains(name))
+                {
+                    return readOnlyInstances2;
+                }
+            }
+            /* For the most evil people */
+            foreach (NetworkUser readOnlyInstances2 in NetworkUser.readOnlyInstancesList)
+            {
+                if (NormalizeString(readOnlyInstances2.userName).Contains(name))
                 {
                     return readOnlyInstances2;
                 }
@@ -460,6 +574,10 @@ namespace Gimme
         internal static string ReformatString(string input)
         {
             return Regex.Replace(input, "[ '_.,-]", string.Empty).ToLower();
+        }
+        internal static string NormalizeString(string input)
+        {
+            return input.Normalize(System.Text.NormalizationForm.FormKD);
         }
 
         internal static ItemIndex RandomItem()
