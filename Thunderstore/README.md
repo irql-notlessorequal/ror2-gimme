@@ -1,6 +1,6 @@
 # Gimme
 
-A simple Risk of Rain 2 mod that adds a command to let you spawn in items.
+A simple Risk of Rain 2 mod that adds a set of commands to let you spawn in items.
 
 ## 🚨 README BEFORE INSTALLING 🚨
 
@@ -64,7 +64,7 @@ For some reason, player equipment isn't available in `ItemCatalog.allItems`.
 
 I may fix this in the future.
 
-There are some other items are not available since they are internal items and their functionality is not known.
+There are some other items that are not available because they are internal items and their functionality is not known.
 
 # Credits
 
