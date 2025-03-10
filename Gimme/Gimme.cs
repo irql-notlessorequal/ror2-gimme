@@ -43,7 +43,7 @@ namespace Gimme
     [BepInDependency(LanguageAPI.PluginGUID)]
     [BepInProcess("Risk of Rain 2.exe")]
     [BepInPlugin(GUID, NAME, VERSION)]
-    public class Main : BaseUnityPlugin
+    public class Gimme : BaseUnityPlugin
     {
         private const string GUID = "com.nulldev.ror2.gimme";
         private const string NAME = "Gimme";
@@ -100,8 +100,8 @@ namespace Gimme
                         }
                         else
                         {
-                            string str5 = Give.Give_item(sender.networkUser, arguments, log);
-                            if (str5 == null)
+                            string response = Give.GiveItem(sender.networkUser, arguments, log);
+                            if (response == null)
                                 Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                                 {
                                     baseToken = "<color=#ff4646>ERROR: null output</color>"
@@ -109,7 +109,7 @@ namespace Gimme
                             else
                                 Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                                 {
-                                    baseToken = str5
+                                    baseToken = response
                                 });
                         }
                     }
@@ -121,8 +121,8 @@ namespace Gimme
                             text = chatMessage
                         });
 
-                        string str5 = Give.Give_item_random(sender.networkUser, arguments, log);
-                        if (str5 == null)
+                        string response = Give.GiveRandomItem(sender.networkUser, arguments, log);
+                        if (response == null)
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
                                 baseToken = "<color=#ff4646>ERROR: null output</color>"
@@ -130,12 +130,12 @@ namespace Gimme
                         else
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
-                                baseToken = str5
+                                baseToken = response
                             });
                     }
                     else if (command.ToUpperInvariant() == "GIMME_DUMP_ITEMS")
                     {
-                        Give.Dump_items();
+                        Give.DumpItems();
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                         {
                             baseToken = "Gimme wrote a gimme_items.txt into your game's directory."
@@ -180,18 +180,15 @@ namespace Gimme
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
         }
 
-        public static string Give_item_random(NetworkUser sender, string[] args, ManualLogSource log)
+        public static string GiveRandomItem(NetworkUser user, string[] args, ManualLogSource log)
         {
-            Inventory inventory1 = sender != null ? sender.master.inventory : (Inventory)null;
-
+            Inventory sender = user != null ? user.master.inventory : (Inventory)null;
             NetworkUser netUserFromString = StringParsers.GetRandomUser();
-
-            Inventory inventory2 = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
-            if (!inventory1 || !inventory2)
+            Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
+            if (!sender || !recipient)
                 return "<color=#ff4646>ERROR: null inventory</color>";
 
             int num = 1;
-
             if (args.Length == 2)
             {
                 if (!System.Int32.TryParse(args[1], out num))
@@ -200,19 +197,19 @@ namespace Gimme
                 }
             }
 
-            return _provide_item(sender, inventory1, inventory2, netUserFromString, num, args, log);
+            return ProvideItem(user, sender, recipient, netUserFromString, num, args, log);
         }
 
-        public static string Give_item(NetworkUser sender, string[] args, ManualLogSource log)
+        public static string GiveItem(NetworkUser user, string[] args, ManualLogSource log)
         {
-            Inventory inventory1 = sender != null ? sender.master.inventory : (Inventory)null;
+            Inventory sender = user != null ? user.master.inventory : (Inventory)null;
 
-            NetworkUser netUserFromString = GetPlayer(sender, args);
+            NetworkUser netUserFromString = GetPlayer(user, args);
             if (netUserFromString == null)
                 return "<color=#FF8282>Could not find specified </color>player<color=#FF8282> '<color=#ff4646>" + args[1] + "</color>'</color>";
 
-            Inventory inventory2 = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
-            if (!inventory1 || !inventory2)
+            Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
+            if (!sender || !recipient)
                 return "<color=#ff4646>ERROR: null inventory</color>";
 
             int num = 1;
@@ -225,15 +222,14 @@ namespace Gimme
                 }
             }
 
-            return _provide_item(sender, inventory1, inventory2, netUserFromString, num, args, log);
+            return ProvideItem(user, sender, recipient, netUserFromString, num, args, log);
         }
 
-        public static string _provide_item(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string[] args, ManualLogSource log)
+        internal static string ProvideItem(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string[] args, ManualLogSource log)
         {
             string str1 = "<color=#AAE6F0>" + netUserFromString.masterController.GetDisplayName() + "</color>";
             string str2 = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
             EquipmentIndex equipmentIndex = EquipmentIndex.None;
-
             ItemIndex itemIndex = ItemIndex.None;
 
             if (args.Length == 0)
@@ -322,7 +318,7 @@ namespace Gimme
             /**
              * If there's only one connection, it's probably a solo lobby.
              */
-            if (NetworkServer.connections.Count == 1)
+            if (NetworkUser.readOnlyInstancesList.Count == 1)
                 return sender;
 
             return StringParsers.GetNetUserFromString(args[1]);
@@ -338,7 +334,7 @@ namespace Gimme
             return itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed;
         }
 
-        internal static void Dump_items()
+        internal static void DumpItems()
         {
             using (StreamWriter text = new StreamWriter("gimme_items.txt"))
             {
