@@ -6,7 +6,7 @@
 - `/gimme` now handles Unicode player names better.
 - Updated the item blacklist to include some internal (not visible by the player) items.
 - Fixed incorrectly printing multiple "s" at the end of the item name.
-- Made the argument parser for Gimme much more flexible, see README for examples.
+- Made the argument parser for Gimme more flexible, see README for examples.
 
 ## 1.0.0
 

@@ -22,7 +22,8 @@ where:
 - `[PLAYER]` for a player, not required when playing solo.
 - `{QUANTITY}` the amount to give, a number between one and 1024, optional.
 
-As of version 1.0.1, the argument parser is much more flexible.
+As of version 1.0.1, the argument parser is more flexible.
+
 The following combos are now permitted:
 ```
 /gi Tougher 255 <-- Gives 255 Tougher Times to self (solo only)
@@ -38,8 +39,8 @@ funny
 
 ## Why do I see "Too much of item requested"...
 
-Some items either make the game way too unplayable, or will lag the hell out of the host, so a very small
-pool of items have a fixed limit within Gimme, you can still obtain more of these items normally through
+Some items make the game either way too unplayable or will lag the hell out of the host, so a very small
+pool of items have a fixed limit within Gimme, however you can still obtain more of these items normally through
 the game.
 
 ## Why isn't this mod host only?

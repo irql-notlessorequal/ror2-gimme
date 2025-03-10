@@ -575,6 +575,7 @@ namespace Gimme
         {
             return Regex.Replace(input, "[ '_.,-]", string.Empty).ToLower();
         }
+
         internal static string NormalizeString(string input)
         {
             return input.Normalize(System.Text.NormalizationForm.FormKD);
