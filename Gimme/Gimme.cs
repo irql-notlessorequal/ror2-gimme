@@ -47,7 +47,7 @@ namespace Gimme
     {
         private const string GUID = "com.nulldev.ror2.gimme";
         private const string NAME = "Gimme";
-        private const string VERSION = "1.0.0";
+        private const string VERSION = "1.0.1";
 
         internal static ManualLogSource log { get; set; }
 
@@ -168,7 +168,7 @@ namespace Gimme
             RESTRICTED_ITEMS.Add(DLC1Content.Items.AttackSpeedAndMoveSpeed, 100);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.SprintBonus, 100);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Hoof, 100);
-            /* Limit the amount of Wax Quail's */
+            /* Limit the amount of Wax Quail's so you don't leave the world bounds */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.JumpBoost, 10);
             /* Limit jump heights with H3AD-5T V2 */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.FallBoots, 10);
@@ -182,7 +182,6 @@ namespace Gimme
 
         public static string Give_item_random(NetworkUser sender, string[] args, ManualLogSource log)
         {
-            NetworkUserId id = sender.id;
             Inventory inventory1 = sender != null ? sender.master.inventory : (Inventory)null;
 
             NetworkUser netUserFromString = StringParsers.GetRandomUser();
@@ -204,17 +203,11 @@ namespace Gimme
             return _provide_item(sender, inventory1, inventory2, netUserFromString, num, args, log);
         }
 
-        private static string last(string[] arr)
-        {
-            return arr[arr.Length - 1];
-        }
-
         public static string Give_item(NetworkUser sender, string[] args, ManualLogSource log)
         {
-            NetworkUserId id = sender.id;
-
             Inventory inventory1 = sender != null ? sender.master.inventory : (Inventory)null;
-            NetworkUser netUserFromString = StringParsers.GetNetUserFromString(args[1]);
+
+            NetworkUser netUserFromString = GetPlayer(sender, args);
             if (netUserFromString == null)
                 return "<color=#FF8282>Could not find specified </color>player<color=#FF8282> '<color=#ff4646>" + args[1] + "</color>'</color>";
 
@@ -245,7 +238,17 @@ namespace Gimme
 
             if (args.Length == 0)
             {
-                itemIndex = StringParsers.RandomItem();
+                /**
+                 * Avoid trying to roll a non-droppable item.
+                 */
+                do
+                {
+                    itemIndex = StringParsers.RandomItem();
+                    if (IsNotDropable(itemIndex))
+                        continue;
+
+                    break;
+                } while (true);
             }
             else
             {
@@ -267,7 +270,7 @@ namespace Gimme
             PickupIndex pickupIndex1 = PickupCatalog.FindPickupIndex(itemIndex);
             string coloredString1 = Util.GenerateColoredString(Language.GetString(itemDef.nameToken), PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
 
-            if (itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed)
+            if (IsNotDropable(itemDef))
             {
                 return coloredString1 + "<color=#FF8282> is not dropable</color>";
             }
@@ -280,7 +283,7 @@ namespace Gimme
 
                 if (num >= limit)
                 {
-                    return "<color=#FF8282>Too much of item requested, the limit is '" + (limit - 1) + "'.</color>";
+                    return "<color=#FF8282>Too much of item requested, the limit is '" + limit + "'.</color>";
                 }
 
                 if (currentAmount + num >= limit)
@@ -304,9 +307,6 @@ namespace Gimme
 
             inventory2.GiveItem(itemIndex, num);
 
-            if (inventory1 != inventory2)
-                inventory1.RemoveItem(itemIndex, num);
-
             if (str1.Equals(str2))
             {
                 return string.Format("{0}{1} gave themselves {2} {3}</color>", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1);
@@ -315,6 +315,27 @@ namespace Gimme
             {
                 return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)str2, (object)num, (object)coloredString1, (object)str1);
             }
+        }
+
+        internal static NetworkUser GetPlayer(NetworkUser sender, string[] args)
+        {
+            /**
+             * If there's only one connection, it's probably a solo lobby.
+             */
+            if (NetworkServer.connections.Count == 1)
+                return sender;
+
+            return StringParsers.GetNetUserFromString(args[1]);
+        }
+
+        internal static bool IsNotDropable(ItemIndex itemIndex)
+        {
+            return IsNotDropable(ItemCatalog.GetItemDef(itemIndex));
+        }
+
+        internal static bool IsNotDropable(ItemDef itemDef)
+        {
+            return itemDef == RoR2Content.Items.CaptainDefenseMatrix || itemDef.tier == ItemTier.NoTier && itemDef != RoR2Content.Items.ExtraLifeConsumed && itemDef != DLC1Content.Items.ExtraLifeVoidConsumed && itemDef != DLC1Content.Items.FragileDamageBonusConsumed && itemDef != DLC1Content.Items.HealingPotionConsumed && itemDef != DLC1Content.Items.RegeneratingScrapConsumed;
         }
 
         internal static void Dump_items()
@@ -384,7 +405,6 @@ namespace Gimme
 
         public static EquipmentIndex GetEquipFromPartial(string name)
         {
-            //IL_002f: Unknown result type (might be due to invalid IL or missing references)
             name = ReformatString(name);
             EquipmentDef[] equipmentDefs = EquipmentCatalog.equipmentDefs;
             foreach (EquipmentDef val in equipmentDefs)
