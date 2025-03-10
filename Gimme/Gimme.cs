@@ -1,31 +1,60 @@
+/**
+ * MIT License
+ * 
+ * Copyright (c) 2025 IRQL_NOT_LESS_OR_EQUAL
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 using BepInEx;
+using BepInEx.Logging;
+
 using R2API;
+using R2API.Utils;
 
 using RoR2;
 
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
 using UnityEngine;
 using UnityEngine.Networking;
-using BepInEx.Logging;
-using System.IO;
 
 namespace Gimme
 {
     [BepInDependency(ItemAPI.PluginGUID)]
     [BepInDependency(LanguageAPI.PluginGUID)]
-    [BepInPlugin("com.nulldev.ror2.gimme", "Gimme", "0.0.5")]
+    [BepInProcess("Risk of Rain 2.exe")]
+    [BepInPlugin(GUID, NAME, VERSION)]
     public class Main : BaseUnityPlugin
     {
-        internal static new ManualLogSource log { get; set; }
+        private const string GUID = "com.nulldev.ror2.gimme";
+        private const string NAME = "Gimme";
+        private const string VERSION = "0.0.6";
+
+        internal static ManualLogSource log { get; set; }
 
         private void Awake()
         {
             log = base.Logger;
 
-            // ISSUE: method pointer
             On.RoR2.Console.RunCmd += Console_RunCmd;
             On.RoR2.Achievements.BaseAchievement.Grant += AchievementBlocker;
 
@@ -45,24 +74,24 @@ namespace Gimme
             }
             else
             {
-                string str1 = userArgs.FirstOrDefault<string>();
-                if (string.IsNullOrWhiteSpace(str1) || !str1.StartsWith("/"))
+                string chatMessage = userArgs.FirstOrDefault<string>();
+                if (string.IsNullOrWhiteSpace(chatMessage) || !chatMessage.StartsWith("/"))
                 {
                     orig.Invoke(self, sender, concommandName, userArgs);
                 }
                 else
                 {
-                    string[] source = str1.Split(' ');
-                    string str2 = ((IEnumerable<string>)source).FirstOrDefault<string>().Substring(1);
-                    string[] array = ((IEnumerable<string>)source).Skip<string>(1).ToArray<string>();
-                    if (str2.ToUpperInvariant() == "GIMME" || str2.ToUpperInvariant() == "GI")
+                    string[] source = chatMessage.Split(' ');
+                    string command = ((IEnumerable<string>)source).FirstOrDefault<string>().Substring(1);
+                    string[] arguments = ((IEnumerable<string>)source).Skip<string>(1).ToArray<string>();
+                    if (command.ToUpperInvariant() == "GIMME" || command.ToUpperInvariant() == "GI")
                     {
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
                         {
                             sender = ((Component)sender.networkUser).gameObject,
-                            text = str1
+                            text = chatMessage
                         });
-                        if (array.Length < 2 || array[0] == "" || array[0].ToUpperInvariant() == "HELP")
+                        if (arguments.Length < 2 || arguments[0] == "" || arguments[0].ToUpperInvariant() == "HELP")
                         {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
@@ -71,7 +100,7 @@ namespace Gimme
                         }
                         else
                         {
-                            string str5 = Give.Give_item(sender.networkUser, array, log);
+                            string str5 = Give.Give_item(sender.networkUser, arguments, log);
                             if (str5 == null)
                                 Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                                 {
@@ -84,15 +113,15 @@ namespace Gimme
                                 });
                         }
                     }
-                    else if (str2.ToUpperInvariant() == "GR" || str2.ToUpperInvariant() == "GIMMERANDOM")
+                    else if (command.ToUpperInvariant() == "GR" || command.ToUpperInvariant() == "GIMMERANDOM")
                     {
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
                         {
                             sender = ((Component)sender.networkUser).gameObject,
-                            text = str1
+                            text = chatMessage
                         });
 
-                        string str5 = Give.Give_item_random(sender.networkUser, array, log);
+                        string str5 = Give.Give_item_random(sender.networkUser, arguments, log);
                         if (str5 == null)
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
                             {
@@ -104,7 +133,7 @@ namespace Gimme
                                 baseToken = str5
                             });
                     }
-                    else if (str2.ToUpperInvariant() == "GIMME_DUMP_ITEMS")
+                    else if (command.ToUpperInvariant() == "GIMME_DUMP_ITEMS")
                     {
                         Give.Dump_items();
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()

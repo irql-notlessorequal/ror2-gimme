@@ -1,3 +1,3 @@
-## 1.0.0
+## 0.0.6
 
-- First release
+- Initial public release.
