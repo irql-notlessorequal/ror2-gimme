@@ -1,3 +1,10 @@
+## 1.0.2
+
+- Added a limit for `Fuel Cells` as the game's HUD does not display more than 255 charges.
+- Added a limit for `Irradiant Pearls`
+- Added a limit for `Egocentrism` to save your framerate.
+- Bug fixes from playtesting.
+
 ## 1.0.1
 
 - Code cleanup.

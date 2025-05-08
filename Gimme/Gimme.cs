@@ -47,7 +47,7 @@ namespace Gimme
     {
         private const string GUID = "com.nulldev.ror2.gimme";
         private const string NAME = "Gimme";
-        private const string VERSION = "1.0.1";
+        private const string VERSION = "1.0.2";
 
         internal static ManualLogSource log { get; set; }
 
@@ -223,6 +223,15 @@ namespace Gimme
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Talisman, 69);
             /* Prevent literally being unable to move */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
+            /* Game's HUD does not display more than 255 charges. */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.EquipmentMagazine, 255);
+            /* Too many Irradiant Pearls will boost your movement speed too far */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.ShinyPearl, 100);
+            /**
+             * Fun story,
+             * I tried giving myself 4096 Egocentrism, my FPS dropped down to one.
+             */
+            RESTRICTED_ITEMS.Add(DLC1Content.Items.LunarSun, 100);
 
             /** Blocked items. */
             /** Vanilla */
@@ -292,7 +301,7 @@ namespace Gimme
 
             Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
             if (!sender || !recipient)
-                return "<color=#ff4646>ERROR: null inventory</color>";
+                return "<color=#ff4646>Player not found or invalid player name.</color>";
 
             return ProvideItem(user, sender, recipient, netUserFromString, quantity, item, log);
         }
@@ -399,7 +408,13 @@ namespace Gimme
             {
                 bool isNumber = int.TryParse(s, out _);
 
-                if (item == null && !isNumber)
+                /**
+                 * The item name MUST be first in order.
+                 * 
+                 * If we add a number check, it will break on specific
+                 * items like the "57 Leaf Clover"
+                 */
+                if (item == null)
                 {
                     item = s;
                     continue;

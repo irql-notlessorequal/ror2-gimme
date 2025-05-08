@@ -1,6 +1,6 @@
 ﻿{
   "name": "Gimme",
-  "version_number": "1.0.1",
+  "version_number": "1.0.2",
   "description": "surely spawning in items is a good idea",
   "website_url": "https://github.com/irql-notlessorequal/ror2-gimme",
   "dependencies": [
