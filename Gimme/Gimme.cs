@@ -223,8 +223,8 @@ namespace Gimme
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Talisman, 69);
             /* Prevent literally being unable to move */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
-            /* Game's HUD does not display more than 255 charges. */
-            RESTRICTED_ITEMS.Add(RoR2Content.Items.EquipmentMagazine, 255);
+            /* Game's HUD does not display more than 255 charges, we already have one by default. */
+            RESTRICTED_ITEMS.Add(RoR2Content.Items.EquipmentMagazine, 254);
             /* Too many Irradiant Pearls will boost your movement speed too far */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.ShinyPearl, 100);
             /**
@@ -355,7 +355,10 @@ namespace Gimme
                     return "<color=#FF8282>Too much of an item requested, the limit is '" + limit + "'.</color>";
                 }
 
-                if (currentAmount + num >= limit)
+                /**
+                 * This should be "AMOUNT + REQUESTED > LIMIT", not ">="
+                 */
+                if (currentAmount + num > limit)
                 {
                     return "<color=#FF8282>Player already has too much of item.</color>";
                 }
