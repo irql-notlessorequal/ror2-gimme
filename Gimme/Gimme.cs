@@ -25,8 +25,6 @@ using BepInEx;
 using BepInEx.Logging;
 
 using R2API;
-using R2API.Utils;
-
 using RoR2;
 
 using System.Collections.Generic;
@@ -47,8 +45,9 @@ namespace Gimme
     {
         private const string GUID = "com.nulldev.ror2.gimme";
         private const string NAME = "Gimme";
-        private const string VERSION = "1.0.2";
+        private const string VERSION = "1.0.3";
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles")]
         internal static ManualLogSource log { get; set; }
 
         public void Awake()
@@ -100,7 +99,7 @@ namespace Gimme
                         }
                         else
                         {
-                            string response = GimmeLogic.GiveItem(sender.networkUser, arguments, log);
+                            string response = GimmeLogic.GiveItem(sender.networkUser, arguments);
                             if (response == null)
                             {
                                 Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
@@ -125,7 +124,7 @@ namespace Gimme
                             text = chatMessage
                         });
 
-                        string response = GimmeLogic.GiveRandomItem(sender.networkUser, arguments, log);
+                        string response = GimmeLogic.GiveRandomItem(sender.networkUser, arguments);
                         if (response == null)
                         {
                             Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
@@ -158,37 +157,6 @@ namespace Gimme
         }
     }
 
-    /**
-     * These items are internal to the game, you never get to see them in actual play.
-     */
-    internal enum InternalItemNames
-    {
-        AA_CANNON = 0,
-        AA_ARMOR = 1,
-        BOOST_ATTACK_SPEED = 23,
-        BOOST_EQUIPMENT_RECHARGE = 25,
-        CONVERT_CRIT_CHANCE_TO_CRIT_DAMAGE = 35,
-        CRIPPLE_WARD_ON_LEVEL = 37,
-        DRIZZLE_PLAYER_HELPER = 47,
-        DRONE_WEAPONS_BOOST = 49,
-        DRONE_WEAPONS_DISPLAY1 = 50,
-        DRONE_WEAPONS_DISPLAY2 = 51,
-        EMPOWER_ALWAYS = 53,
-        GHOST = 76,
-        GUMMY_CLONE_IDENTIFIER = 80,
-        HEALTH_DECAY = 88,
-        INVADING_DOPPELGANGER = 99,
-        LEMURIAN_HARNESS = 106,
-        LEVEL_BONUS = 107,
-        MAGE_ATTUNEMENT = 120,
-        MINION_LEASH = 124,
-        MONSOON_PLAYER_HELPER = 128,
-        PLANT_ON_HIT = 145,
-        PLASMA_CORE = 146,
-        TEMPEST_ON_KILL = 188,
-        WARCRY_ON_COMBAT = 200
-    }
-
     internal class GimmeLogic
     {
         public const string RANDOM_ITEM = "#gimme-random";
@@ -199,7 +167,6 @@ namespace Gimme
         public const string bold = "<color=#ff4646>";
 
         private static readonly Dictionary<ItemDef, int> RESTRICTED_ITEMS = new Dictionary<ItemDef, int>();
-        private static readonly Dictionary<int, int> ITEM_BLACKLIST = new Dictionary<int, int>();
 
         static GimmeLogic()
         {
@@ -210,9 +177,11 @@ namespace Gimme
             /* 1024 Bottled Chaos makes my game lag (on 2017-era hardware) for a while */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.RandomEquipmentTrigger, 128);
             /* Limit movement speed boosts to one hundred, otherwise you will literally hit world bounds instantly */
-            RESTRICTED_ITEMS.Add(DLC1Content.Items.AttackSpeedAndMoveSpeed, 100);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.SprintBonus, 100);
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Hoof, 100);
+            RESTRICTED_ITEMS.Add(DLC1Content.Items.AttackSpeedAndMoveSpeed, 100);
+            RESTRICTED_ITEMS.Add(DLC2Content.Items.AttackSpeedPerNearbyAllyOrEnemy, 100);
+            RESTRICTED_ITEMS.Add(DLC3Content.Items.CookedSteak, 100);
             /* Limit the amount of Wax Quail's so you don't leave the world bounds */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.JumpBoost, 10);
             /* Limit jump heights with H3AD-5T V2 */
@@ -223,6 +192,7 @@ namespace Gimme
             RESTRICTED_ITEMS.Add(RoR2Content.Items.Talisman, 69);
             /* Prevent literally being unable to move */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.HalfSpeedDoubleHealth, 16);
+            RESTRICTED_ITEMS.Add(DLC3Content.Items.TransferDebuffOnHit, 16);
             /* Game's HUD does not display more than 255 charges, we already have one by default. */
             RESTRICTED_ITEMS.Add(RoR2Content.Items.EquipmentMagazine, 254);
             /* Too many Irradiant Pearls will boost your movement speed too far */
@@ -232,42 +202,17 @@ namespace Gimme
              * I tried giving myself 4096 Egocentrism, my FPS dropped down to one.
              */
             RESTRICTED_ITEMS.Add(DLC1Content.Items.LunarSun, 100);
-
-            /** Blocked items. */
-            /** Vanilla */
-            ITEM_BLACKLIST.Add((int)InternalItemNames.AA_CANNON, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.AA_ARMOR, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.BOOST_ATTACK_SPEED, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.BOOST_EQUIPMENT_RECHARGE, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.CRIPPLE_WARD_ON_LEVEL, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.DRIZZLE_PLAYER_HELPER, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.GHOST, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.HEALTH_DECAY, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.INVADING_DOPPELGANGER, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.LEVEL_BONUS, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.MONSOON_PLAYER_HELPER, 0);
-
-            /** DLC1 */
-            ITEM_BLACKLIST.Add((int)InternalItemNames.CONVERT_CRIT_CHANCE_TO_CRIT_DAMAGE, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.DRONE_WEAPONS_BOOST, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.DRONE_WEAPONS_DISPLAY1, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.DRONE_WEAPONS_DISPLAY2, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.GUMMY_CLONE_IDENTIFIER, 0);
-
-            /** DLC2 */
-            ITEM_BLACKLIST.Add((int)InternalItemNames.LEMURIAN_HARNESS, 0);
-
-            /** Misc. (has no internal definition) */
-            ITEM_BLACKLIST.Add((int)InternalItemNames.EMPOWER_ALWAYS, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.MAGE_ATTUNEMENT, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.MINION_LEASH, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.PLANT_ON_HIT, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.PLASMA_CORE, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.TEMPEST_ON_KILL, 0);
-            ITEM_BLACKLIST.Add((int)InternalItemNames.WARCRY_ON_COMBAT, 0);
+            /**
+             * This doesn't scale past one hundred.
+             */
+            RESTRICTED_ITEMS.Add(DLC2Content.Items.LowerPricedChests, 100);
+            /**
+             * One hundred is alreay a very long time for a """temporary""" item.
+             */
+            RESTRICTED_ITEMS.Add(DLC3Content.Items.Duplicator, 100);
         }
 
-        public static string GiveRandomItem(NetworkUser user, string[] args, ManualLogSource log)
+        public static string GiveRandomItem(NetworkUser user, string[] args)
         {
             Inventory sender = user != null ? user.master.inventory : (Inventory)null;
             NetworkUser netUserFromString = StringParsers.GetRandomUser();
@@ -280,10 +225,10 @@ namespace Gimme
                 return "<color=#ff4646>ERROR: ParsePlayerArguments() returned FALSE!</color>";
             }
 
-            return ProvideItem(user, sender, recipient, netUserFromString, quantity, RANDOM_ITEM, log);
+            return ProvideItem(user, sender, recipient, netUserFromString, quantity, RANDOM_ITEM);
         }
 
-        public static string GiveItem(NetworkUser user, string[] args, ManualLogSource log)
+        public static string GiveItem(NetworkUser user, string[] args)
         {
             Inventory sender = user != null ? user.master.inventory : (Inventory)null;
 
@@ -303,10 +248,10 @@ namespace Gimme
             if (!sender || !recipient)
                 return "<color=#ff4646>Player not found or invalid player name.</color>";
 
-            return ProvideItem(user, sender, recipient, netUserFromString, quantity, item, log);
+            return ProvideItem(user, sender, recipient, netUserFromString, quantity, item);
         }
 
-        internal static string ProvideItem(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string item, ManualLogSource log)
+        internal static string ProvideItem(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string item)
         {
             string recipientName = "<color=#AAE6F0>" + netUserFromString.masterController.GetDisplayName() + "</color>";
             string senderName = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
@@ -328,7 +273,7 @@ namespace Gimme
             }
             else
             {
-                itemIndex = StringParsers.FindItem(item, log);
+                itemIndex = StringParsers.FindItem(item);
             }
 
             if (itemIndex == ItemIndex.None)
@@ -347,7 +292,7 @@ namespace Gimme
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
             {
                 /* Check if we are about to give too much to a player and if so, don't do it */
-                int currentAmount = inventory2.GetItemCount(itemDef);
+                int currentAmount = inventory2.GetItemCountPermanent(itemDef);
                 int limit = RESTRICTED_ITEMS[itemDef];
 
                 if (num >= limit)
@@ -377,7 +322,7 @@ namespace Gimme
                 num = 1024;
             }
 
-            inventory2.GiveItem(itemIndex, num);
+            inventory2.GiveItemPermanent(itemIndex, num);
 
             if (recipientName.Equals(senderName))
             {
@@ -391,7 +336,16 @@ namespace Gimme
 
         internal static bool IsNotSpawnable(ItemIndex index)
         {
-            return ITEM_BLACKLIST.ContainsKey((int)index);
+            ItemDef itemDefinition = ItemCatalog.GetItemDef(index);
+            var localizedName = Language.GetString(itemDefinition.nameToken);
+
+            /**
+             * Internal items sadly don't have a stable item index (thanks Randy)
+             * 
+             * Instead the only real option is to exploit the lack of localization
+             * and detect if the item is named in the "ITEM_XXX_NAME" format.
+             */
+            return localizedName.StartsWith("ITEM_") && localizedName.EndsWith("_NAME");
         }
 
         internal static bool ParsePlayerArguments(NetworkUser sender, string[] args,
@@ -608,7 +562,7 @@ namespace Gimme
                 .ElementAtOrDefault(idx);
         }
 
-        internal static ItemIndex FindItem(string item, ManualLogSource log)
+        internal static ItemIndex FindItem(string item)
         {
             return ItemCatalog.allItems.AsParallel()
                 .Where((candidate) =>

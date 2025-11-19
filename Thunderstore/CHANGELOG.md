@@ -1,3 +1,10 @@
+## 1.0.3
+
+- Updated for the Alloyed Collective DLC.
+- Updated project build.
+- Removed and changed how the internal item blacklist works.
+- Minor cleanups.
+
 ## 1.0.2
 
 - Added a limit for `Fuel Cells` as the game's HUD does not display more than 255 charges.
@@ -8,7 +15,7 @@
 ## 1.0.1
 
 - Code cleanup.
-- `/gimme` (and it's short version) no longer require giving your name if you are playing solo.
+- `/gimme` (and it's short version) no longer requires giving your name if you are playing solo.
 - Fixed `/gimmerandom` not working around non-spawnable items.
 - `/gimme` now handles Unicode player names better.
 - Updated the item blacklist to include some internal (not visible by the player) items.
