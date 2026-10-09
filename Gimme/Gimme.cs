@@ -315,11 +315,11 @@ namespace Gimme
 
             if (ReferenceEquals(recipientUser, sender))
             {
-                return string.Format("{0}{1} gave themselves {2} {3}</color>", (object)"<color=#96EBAA>", (object)senderName, (object)num, (object)coloredString1);
+                return $"<color=#96EBAA>{senderName} gave themselves {num} {coloredString1}</color>";
             }
             else
             {
-                return string.Format("{0}{1} gave {2} {3} to </color>{4}", (object)"<color=#96EBAA>", (object)senderName, (object)num, (object)coloredString1, (object)recipientName);
+                return $"<color=#96EBAA>{senderName} gave {num} {coloredString1} to </color>{recipientName}";
             }
         }
 
