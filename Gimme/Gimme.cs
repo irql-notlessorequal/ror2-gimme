@@ -28,8 +28,10 @@ using R2API;
 using RoR2;
 
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 using UnityEngine;
@@ -536,7 +538,7 @@ namespace Gimme
             /* For the most evil people */
             foreach (NetworkUser readOnlyInstances2 in NetworkUser.readOnlyInstancesList)
             {
-                if (NormalizeString(readOnlyInstances2.userName).Contains(name))
+                if (ReformatString(NormalizeString(readOnlyInstances2.userName)).Contains(name))
                 {
                     return readOnlyInstances2;
                 }
@@ -544,14 +546,25 @@ namespace Gimme
             return null;
         }
 
+        private static readonly Regex ReformatRegex = new Regex("[ '_.,-]", RegexOptions.Compiled);
+
         internal static string ReformatString(string input)
         {
-            return Regex.Replace(input, "[ '_.,-]", string.Empty).ToLower();
+            return ReformatRegex.Replace(input, string.Empty).ToLowerInvariant();
         }
 
         internal static string NormalizeString(string input)
         {
-            return input.Normalize(System.Text.NormalizationForm.FormKD);
+            string normalized = input.Normalize(NormalizationForm.FormD);
+            StringBuilder stripped = new StringBuilder(normalized.Length);
+            foreach (char c in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                {
+                    stripped.Append(c);
+                }
+            }
+            return stripped.ToString();
         }
 
         internal static ItemIndex RandomItem()
