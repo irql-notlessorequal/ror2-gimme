@@ -292,14 +292,6 @@ namespace Gimme
                 int currentAmount = recipientInventory.GetItemCountPermanent(itemDef);
                 int limit = RESTRICTED_ITEMS[itemDef];
 
-                if (num >= limit)
-                {
-                    return "<color=#FF8282>Too much of an item requested, the limit is '" + limit + "'.</color>";
-                }
-
-                /**
-                 * This should be "AMOUNT + REQUESTED > LIMIT", not ">="
-                 */
                 if (currentAmount + num > limit)
                 {
                     return "<color=#FF8282>Player already has too much of item.</color>";
