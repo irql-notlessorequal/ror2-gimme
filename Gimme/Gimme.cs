@@ -73,16 +73,33 @@ namespace Gimme
             }
             else
             {
-                string chatMessage = userArgs.FirstOrDefault<string>();
-                if (string.IsNullOrWhiteSpace(chatMessage) || !chatMessage.StartsWith("/"))
+                string chatMessage = userArgs?.FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(chatMessage) || sender.networkUser == null)
                 {
                     orig.Invoke(self, sender, concommandName, userArgs);
                 }
                 else
                 {
-                    string[] source = chatMessage.Split(' ');
-                    string command = ((IEnumerable<string>)source).FirstOrDefault<string>().Substring(1);
-                    string[] arguments = ((IEnumerable<string>)source).Skip<string>(1).ToArray<string>();
+                    chatMessage = chatMessage.Trim();
+                    if (!chatMessage.StartsWith("/"))
+                    {
+                        orig.Invoke(self, sender, concommandName, userArgs);
+                        return;
+                    }
+
+                    string[] source = chatMessage.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    if (source.Length == 0)
+                    {
+                        orig.Invoke(self, sender, concommandName, userArgs);
+                        return;
+                    }
+                    string command = source[0].Substring(1);
+                    if (string.IsNullOrEmpty(command))
+                    {
+                        orig.Invoke(self, sender, concommandName, userArgs);
+                        return;
+                    }
+                    string[] arguments = source.Skip(1).ToArray();
                     if (command.ToUpperInvariant() == "GIMME" || command.ToUpperInvariant() == "GI")
                     {
                         Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
