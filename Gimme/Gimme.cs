@@ -232,7 +232,7 @@ namespace Gimme
         public static string GiveRandomItem(NetworkUser user, string[] args)
         {
             NetworkUser netUserFromString = StringParsers.GetRandomUser();
-            Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
+            Inventory recipient = netUserFromString?.master?.inventory;
             if (!recipient)
                 return "<color=#ff4646>ERROR: Unable to get player inventory!</color>";
 
@@ -255,7 +255,7 @@ namespace Gimme
                 }
             }
 
-            Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
+            Inventory recipient = netUserFromString?.master?.inventory;
             if (!recipient)
                 return "<color=#ff4646>Player not found or invalid player name.</color>";
 
@@ -264,8 +264,10 @@ namespace Gimme
 
         internal static string ProvideItem(NetworkUser sender, Inventory recipientInventory, NetworkUser recipientUser, int num, string item)
         {
-            string recipientName = "<color=#AAE6F0>" + recipientUser.masterController.GetDisplayName() + "</color>";
-            string senderName = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
+            string recipientDisplayName = recipientUser.masterController != null ? recipientUser.masterController.GetDisplayName() : recipientUser.userName;
+            string senderDisplayName = sender != null ? (sender.masterController != null ? sender.masterController.GetDisplayName() : sender.userName) : "Unknown";
+            string recipientName = "<color=#AAE6F0>" + recipientDisplayName + "</color>";
+            string senderName = "<color=#AAE6F0>" + senderDisplayName + "</color>";
             ItemIndex itemIndex = ItemIndex.None;
 
             /**
