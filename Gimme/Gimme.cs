@@ -420,33 +420,29 @@ namespace Gimme
 
         internal static void DumpItems()
         {
-            using (StreamWriter text = new StreamWriter("gimme_items.txt"))
+            try
             {
-                text.WriteLine("// Gimme FORMAT_ONE");
-                foreach (ItemIndex item in ItemCatalog.allItems)
+                using (StreamWriter text = new StreamWriter("gimme_items.txt"))
                 {
-                    ItemDef itemDefinition = ItemCatalog.GetItemDef(item);
-                    var localizedName = Language.GetString(itemDefinition.nameToken);
+                    text.WriteLine("// Gimme FORMAT_ONE");
+                    foreach (ItemIndex item in ItemCatalog.allItems)
+                    {
+                        ItemDef itemDefinition = ItemCatalog.GetItemDef(item);
+                        var localizedName = Language.GetString(itemDefinition.nameToken);
 
-                    /* So fugly... */
-                    string str = "";
-
-                    str += "{index:";
-                    str += item;
-
-                    str += ",tier:";
-                    str += ((int)itemDefinition.tier);
-
-                    str += ",nameToken:\"";
-                    str += itemDefinition.name;
-
-                    str += "\",localizedName:\"";
-                    str += localizedName;
-                    str += "\"}";
-
-                    text.WriteLine(str);
+                        text.WriteLine($"{{index:{(int)item},tier:{(int)itemDefinition.tier},nameToken:\"{Escape(itemDefinition.nameToken)}\",localizedName:\"{Escape(localizedName)}\"}}");
+                    }
                 }
             }
+            catch (System.Exception e) when (e is IOException || e is System.UnauthorizedAccessException)
+            {
+                Gimme.log?.LogError("[Gimme::DumpItems] Failed to write gimme_items.txt: " + e.Message);
+            }
+        }
+
+        private static string Escape(string value)
+        {
+            return value?.Replace("\\", "\\\\").Replace("\"", "\\\"") ?? string.Empty;
         }
     }
 
