@@ -254,6 +254,18 @@ namespace Gimme
             string senderName = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
             ItemIndex itemIndex = ItemIndex.None;
 
+            /**
+             * Limit to 1024 batches, no sane being is going to need more than that.
+             */
+            if (num < 1)
+            {
+                num = 1;
+            }
+            else if (num > 1024)
+            {
+                num = 1024;
+            }
+
             if (item.Equals(RANDOM_ITEM))
             {
                 /**
@@ -301,14 +313,6 @@ namespace Gimme
             if (num > 1 && !nameToken.EndsWith("s"))
             {
                 coloredString1 += Util.GenerateColoredString("s", PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
-            }
-
-            /**
-             * Limit to 1024 batches, no sane being is going to need more than that.
-             */
-            if (num > 1024)
-            {
-                num = 1024;
             }
 
             recipientInventory.GiveItemPermanent(itemIndex, num);
