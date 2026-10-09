@@ -266,7 +266,7 @@ namespace Gimme
                 num = 1024;
             }
 
-            if (item.Equals(RANDOM_ITEM))
+            if (RANDOM_ITEM.Equals(item))
             {
                 /**
                   * Avoid trying to roll a non-droppable item.
@@ -322,7 +322,7 @@ namespace Gimme
 
             recipientInventory.GiveItemPermanent(itemIndex, num);
 
-            if (recipientName.Equals(senderName))
+            if (ReferenceEquals(recipientUser, sender))
             {
                 return string.Format("{0}{1} gave themselves {2} {3}</color>", (object)"<color=#96EBAA>", (object)senderName, (object)num, (object)coloredString1);
             }
