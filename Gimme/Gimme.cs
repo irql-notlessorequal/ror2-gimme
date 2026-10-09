@@ -352,7 +352,9 @@ namespace Gimme
             }
             string equippedName = Util.GenerateColoredString(Language.GetString(equipmentDef.nameToken), pickupDef.baseColor);
 
+            EquipmentIndex previous = recipientInventory.currentEquipmentIndex;
             recipientInventory.SetEquipmentIndex(equipmentIndex, false);
+            DropPreviousEquipment(recipientUser, previous, equipmentIndex);
 
             if (ReferenceEquals(recipientUser, sender))
             {
@@ -362,6 +364,26 @@ namespace Gimme
             {
                 return $"<color=#96EBAA>{senderName} gave {equippedName} to </color>{recipientName}";
             }
+        }
+
+        private static void DropPreviousEquipment(NetworkUser recipientUser, EquipmentIndex previous, EquipmentIndex given)
+        {
+            if (previous == EquipmentIndex.None || previous == given)
+            {
+                return;
+            }
+            PickupIndex previousPickup = PickupCatalog.FindPickupIndex(previous);
+            if (PickupCatalog.GetPickupDef(previousPickup) == null)
+            {
+                return;
+            }
+            GameObject bodyObject = recipientUser.master != null ? recipientUser.master.GetBodyObject() : null;
+            if (bodyObject == null)
+            {
+                return;
+            }
+            Transform bodyTransform = bodyObject.transform;
+            PickupDropletController.CreatePickupDroplet(new UniquePickup(previousPickup), bodyTransform.position, Vector3.up * 20f + bodyTransform.forward * 5f);
         }
 
         internal static bool IsNotSpawnable(ItemIndex index)
