@@ -352,8 +352,6 @@ namespace Gimme
 
             foreach (string s in args)
             {
-                bool isNumber = int.TryParse(s, out _);
-
                 /**
                  * The item name MUST be first in order.
                  * 
@@ -366,16 +364,18 @@ namespace Gimme
                     continue;
                 }
 
-                if (netUserFromString == null && !isNumber)
+                if (int.TryParse(s, out int parsed))
                 {
-                    netUserFromString = StringParsers.GetNetUserFromString(s);
+                    if (quantity == -1)
+                    {
+                        quantity = parsed;
+                    }
                     continue;
                 }
 
-                if (quantity == -1 && isNumber)
+                if (netUserFromString == null)
                 {
-                    if (int.TryParse(s, out quantity))
-                        continue;
+                    netUserFromString = StringParsers.GetNetUserFromString(s);
                 }
             }
 
