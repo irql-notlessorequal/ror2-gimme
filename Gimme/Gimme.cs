@@ -108,7 +108,7 @@ namespace Gimme
                         EchoChat(sender.networkUser, chatMessage);
                         if (arguments.Length == 0 || arguments[0].Equals("HELP", System.StringComparison.OrdinalIgnoreCase))
                         {
-                            Reply("<color=#AAE6F0>/gi itemname playername [amount]\n/gimme itemname playername [amount]\n/gr [amount]\n/gimmerandom [amount]\nWill give items into playername's inventory</color>");
+                            Reply("<color=#AAE6F0>/gi itemname|equipname playername [amount]\n/gimme itemname|equipname playername [amount]\n/gr [amount]\n/gimmerandom [amount]\nWill give items into playername's inventory</color>");
                         }
                         else
                         {
@@ -279,7 +279,14 @@ namespace Gimme
             }
 
             if (itemIndex == ItemIndex.None)
+            {
+                EquipmentIndex equipmentIndex = StringParsers.GetEquipFromPartial(item);
+                if (equipmentIndex != EquipmentIndex.None)
+                {
+                    return ProvideEquipment(sender, recipientInventory, recipientUser, equipmentIndex);
+                }
                 return "<color=#FF8282>Could not find specified </color>item<color=#FF8282> '<color=#ff4646>" + item + "</color>'</color>";
+            }
 
             if (IsNotSpawnable(itemIndex))
             {
@@ -321,6 +328,39 @@ namespace Gimme
             else
             {
                 return $"<color=#96EBAA>{senderName} gave {num} {coloredString1} to </color>{recipientName}";
+            }
+        }
+
+        internal static string ProvideEquipment(NetworkUser sender, Inventory recipientInventory, NetworkUser recipientUser, EquipmentIndex equipmentIndex)
+        {
+            string recipientDisplayName = recipientUser.masterController != null ? recipientUser.masterController.GetDisplayName() : recipientUser.userName;
+            string senderDisplayName = sender != null ? (sender.masterController != null ? sender.masterController.GetDisplayName() : sender.userName) : "Unknown";
+            string recipientName = "<color=#AAE6F0>" + recipientDisplayName + "</color>";
+            string senderName = "<color=#AAE6F0>" + senderDisplayName + "</color>";
+
+            EquipmentDef equipmentDef = EquipmentCatalog.GetEquipmentDef(equipmentIndex);
+            if (equipmentDef == null || !equipmentDef.canDrop)
+            {
+                return "<color=#FF8282>Item cannot be spawned in.</color>";
+            }
+
+            PickupIndex pickupIndex = PickupCatalog.FindPickupIndex(equipmentIndex);
+            PickupDef pickupDef = PickupCatalog.GetPickupDef(pickupIndex);
+            if (pickupDef == null)
+            {
+                return "<color=#FF8282>Item cannot be spawned in.</color>";
+            }
+            string equippedName = Util.GenerateColoredString(Language.GetString(equipmentDef.nameToken), pickupDef.baseColor);
+
+            recipientInventory.SetEquipmentIndex(equipmentIndex, false);
+
+            if (ReferenceEquals(recipientUser, sender))
+            {
+                return $"<color=#96EBAA>{senderName} gave themselves {equippedName}</color>";
+            }
+            else
+            {
+                return $"<color=#96EBAA>{senderName} gave {equippedName} to </color>{recipientName}";
             }
         }
 
