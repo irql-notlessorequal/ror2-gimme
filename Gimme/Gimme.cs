@@ -296,11 +296,10 @@ namespace Gimme
             string nameToken = Language.GetString(itemDef.nameToken);
             string coloredString1 = Util.GenerateColoredString(nameToken, pickupDef.baseColor);
 
-            if (RESTRICTED_ITEMS.ContainsKey(itemDef))
+            if (RESTRICTED_ITEMS.TryGetValue(itemDef, out int limit))
             {
                 /* Check if we are about to give too much to a player and if so, don't do it */
                 int currentAmount = recipientInventory.GetItemCountPermanent(itemDef);
-                int limit = RESTRICTED_ITEMS[itemDef];
 
                 if (currentAmount + num > limit)
                 {
@@ -569,23 +568,31 @@ namespace Gimme
 
         internal static ItemIndex RandomItem()
         {
-            var idx = rng.Next(ItemCatalog.allItems.Count());
+            int count = ItemCatalog.allItems.Count();
+            if (count == 0)
+            {
+                return ItemIndex.None;
+            }
 
-            return ItemCatalog.allItems.AsParallel()
-                .DefaultIfEmpty(ItemIndex.None)
-                .ElementAtOrDefault(idx);
+            return ItemCatalog.allItems.ElementAt(rng.Next(count));
         }
 
         internal static ItemIndex FindItem(string item)
         {
-            return ItemCatalog.allItems.AsParallel()
-                .Where((candidate) =>
+            foreach (ItemIndex candidate in ItemCatalog.allItems)
+            {
+                ItemDef def = ItemCatalog.GetItemDef(candidate);
+                if (def == null)
                 {
-                    ItemDef LocalizedString = ItemCatalog.GetItemDef(candidate);
-                    return Language.GetString(LocalizedString.nameToken).IndexOf(item, System.StringComparison.OrdinalIgnoreCase) >= 0;
-                })
-                .DefaultIfEmpty(ItemIndex.None)
-                .First();
+                    continue;
+                }
+                if (Language.GetString(def.nameToken).IndexOf(item, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return candidate;
+                }
+            }
+
+            return ItemIndex.None;
         }
     }
 }
