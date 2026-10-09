@@ -214,10 +214,9 @@ namespace Gimme
 
         public static string GiveRandomItem(NetworkUser user, string[] args)
         {
-            Inventory sender = user != null ? user.master.inventory : (Inventory)null;
             NetworkUser netUserFromString = StringParsers.GetRandomUser();
             Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
-            if (!sender || !recipient)
+            if (!recipient)
                 return "<color=#ff4646>ERROR: Unable to get player inventory!</color>";
 
             if (!ParsePlayerArguments(user, args, out _, out _, out int quantity))
@@ -225,13 +224,11 @@ namespace Gimme
                 return "<color=#ff4646>ERROR: ParsePlayerArguments() returned FALSE!</color>";
             }
 
-            return ProvideItem(user, sender, recipient, netUserFromString, quantity, RANDOM_ITEM);
+            return ProvideItem(user, recipient, netUserFromString, quantity, RANDOM_ITEM);
         }
 
         public static string GiveItem(NetworkUser user, string[] args)
         {
-            Inventory sender = user != null ? user.master.inventory : (Inventory)null;
-
             if (!ParsePlayerArguments(user, args, out string item, out NetworkUser netUserFromString, out int quantity))
             {
                 if (args.Length != 2)
@@ -245,15 +242,15 @@ namespace Gimme
             }
 
             Inventory recipient = netUserFromString != null ? netUserFromString.master.inventory : (Inventory)null;
-            if (!sender || !recipient)
+            if (!recipient)
                 return "<color=#ff4646>Player not found or invalid player name.</color>";
 
-            return ProvideItem(user, sender, recipient, netUserFromString, quantity, item);
+            return ProvideItem(user, recipient, netUserFromString, quantity, item);
         }
 
-        internal static string ProvideItem(NetworkUser sender, Inventory inventory1, Inventory inventory2, NetworkUser netUserFromString, int num, string item)
+        internal static string ProvideItem(NetworkUser sender, Inventory recipientInventory, NetworkUser recipientUser, int num, string item)
         {
-            string recipientName = "<color=#AAE6F0>" + netUserFromString.masterController.GetDisplayName() + "</color>";
+            string recipientName = "<color=#AAE6F0>" + recipientUser.masterController.GetDisplayName() + "</color>";
             string senderName = "<color=#AAE6F0>" + sender.masterController.GetDisplayName() + "</color>";
             ItemIndex itemIndex = ItemIndex.None;
 
@@ -292,7 +289,7 @@ namespace Gimme
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
             {
                 /* Check if we are about to give too much to a player and if so, don't do it */
-                int currentAmount = inventory2.GetItemCountPermanent(itemDef);
+                int currentAmount = recipientInventory.GetItemCountPermanent(itemDef);
                 int limit = RESTRICTED_ITEMS[itemDef];
 
                 if (num >= limit)
@@ -322,7 +319,7 @@ namespace Gimme
                 num = 1024;
             }
 
-            inventory2.GiveItemPermanent(itemIndex, num);
+            recipientInventory.GiveItemPermanent(itemIndex, num);
 
             if (recipientName.Equals(senderName))
             {
