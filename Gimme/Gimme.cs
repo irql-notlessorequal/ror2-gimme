@@ -219,10 +219,7 @@ namespace Gimme
             if (!recipient)
                 return "<color=#ff4646>ERROR: Unable to get player inventory!</color>";
 
-            if (!ParsePlayerArguments(user, args, out _, out _, out int quantity))
-            {
-                return "<color=#ff4646>ERROR: ParsePlayerArguments() returned FALSE!</color>";
-            }
+            int quantity = ParseRandomQuantity(args);
 
             return ProvideItem(user, recipient, netUserFromString, quantity, RANDOM_ITEM);
         }
@@ -398,6 +395,22 @@ namespace Gimme
                 quantity = 1;
 
             return true;
+        }
+
+        internal static int ParseRandomQuantity(string[] args)
+        {
+            if (args != null)
+            {
+                foreach (string s in args)
+                {
+                    if (int.TryParse(s, out int parsed))
+                    {
+                        return parsed;
+                    }
+                }
+            }
+
+            return 1;
         }
 
         internal static NetworkUser GetPlayer(NetworkUser sender, string arg)
