@@ -100,70 +100,28 @@ namespace Gimme
                         return;
                     }
                     string[] arguments = source.Skip(1).ToArray();
-                    if (command.ToUpperInvariant() == "GIMME" || command.ToUpperInvariant() == "GI")
+                    string upperCommand = command.ToUpperInvariant();
+                    if (upperCommand == "GIMME" || upperCommand == "GI")
                     {
-                        Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
+                        EchoChat(sender.networkUser, chatMessage);
+                        if (arguments.Length == 0 || arguments[0].Equals("HELP", System.StringComparison.OrdinalIgnoreCase))
                         {
-                            sender = ((Component)sender.networkUser).gameObject,
-                            text = chatMessage
-                        });
-                        if (arguments.Length < 1 || arguments[0] == "" || arguments[0].ToUpperInvariant() == "HELP")
-                        {
-                            Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
-                            {
-                                baseToken = "<color=#AAE6F0>/gi itemname playername [amount]\n/gimme itemname playername [amount]\n/gr [itemname] [amount]\n/gimmerandom [itemname] [amount]\nWill give items into playername's inventory"
-                            });
+                            Reply("<color=#AAE6F0>/gi itemname playername [amount]\n/gimme itemname playername [amount]\n/gr [amount]\n/gimmerandom [amount]\nWill give items into playername's inventory</color>");
                         }
                         else
                         {
-                            string response = GimmeLogic.GiveItem(sender.networkUser, arguments);
-                            if (response == null)
-                            {
-                                Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
-                                {
-                                    baseToken = "<color=#ff4646>ERROR: null output</color>"
-                                });
-                            }
-                            else
-                            {
-                                Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
-                                {
-                                    baseToken = response
-                                });
-                            }
+                            Reply(GimmeLogic.GiveItem(sender.networkUser, arguments) ?? "<color=#ff4646>ERROR: null output</color>");
                         }
                     }
-                    else if (command.ToUpperInvariant() == "GR" || command.ToUpperInvariant() == "GIMMERANDOM")
+                    else if (upperCommand == "GR" || upperCommand == "GIMMERANDOM")
                     {
-                        Chat.SendBroadcastChat((ChatMessageBase)new Chat.UserChatMessage()
-                        {
-                            sender = ((Component)sender.networkUser).gameObject,
-                            text = chatMessage
-                        });
-
-                        string response = GimmeLogic.GiveRandomItem(sender.networkUser, arguments);
-                        if (response == null)
-                        {
-                            Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
-                            {
-                                baseToken = "<color=#ff4646>ERROR: null output</color>"
-                            });
-                        }
-                        else
-                        {
-                            Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
-                            {
-                                baseToken = response
-                            });
-                        }
+                        EchoChat(sender.networkUser, chatMessage);
+                        Reply(GimmeLogic.GiveRandomItem(sender.networkUser, arguments) ?? "<color=#ff4646>ERROR: null output</color>");
                     }
-                    else if (command.ToUpperInvariant() == "GIMME_DUMP_ITEMS")
+                    else if (upperCommand == "GIMME_DUMP_ITEMS")
                     {
                         GimmeLogic.DumpItems();
-                        Chat.SendBroadcastChat((ChatMessageBase)new Chat.SimpleChatMessage()
-                        {
-                            baseToken = "Gimme wrote a gimme_items.txt into your game's directory."
-                        });
+                        Reply("Gimme wrote a gimme_items.txt into your game's directory.");
                     }
                     else
                     {
@@ -171,6 +129,23 @@ namespace Gimme
                     }
                 }
             }
+        }
+
+        private static void EchoChat(NetworkUser user, string text)
+        {
+            Chat.SendBroadcastChat(new Chat.UserChatMessage
+            {
+                sender = user.gameObject,
+                text = text
+            });
+        }
+
+        private static void Reply(string token)
+        {
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = token
+            });
         }
     }
 
