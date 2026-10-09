@@ -288,15 +288,20 @@ namespace Gimme
             if (itemIndex == ItemIndex.None)
                 return "<color=#FF8282>Could not find specified </color>item<color=#FF8282> '<color=#ff4646>" + item + "</color>'</color>";
 
-            ItemDef itemDef = ItemCatalog.GetItemDef(itemIndex);
-            PickupIndex pickupIndex1 = PickupCatalog.FindPickupIndex(itemIndex);
-            string nameToken = Language.GetString(itemDef.nameToken);
-            string coloredString1 = Util.GenerateColoredString(nameToken, PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
-
             if (IsNotSpawnable(itemIndex))
             {
                 return "<color=#FF8282>Item cannot be spawned in.</color>";
             }
+
+            ItemDef itemDef = ItemCatalog.GetItemDef(itemIndex);
+            PickupIndex pickupIndex1 = PickupCatalog.FindPickupIndex(itemIndex);
+            PickupDef pickupDef = PickupCatalog.GetPickupDef(pickupIndex1);
+            if (pickupDef == null)
+            {
+                return "<color=#FF8282>Item cannot be spawned in.</color>";
+            }
+            string nameToken = Language.GetString(itemDef.nameToken);
+            string coloredString1 = Util.GenerateColoredString(nameToken, pickupDef.baseColor);
 
             if (RESTRICTED_ITEMS.ContainsKey(itemDef))
             {
@@ -312,7 +317,7 @@ namespace Gimme
 
             if (num > 1 && !nameToken.EndsWith("s"))
             {
-                coloredString1 += Util.GenerateColoredString("s", PickupCatalog.GetPickupDef(pickupIndex1).baseColor);
+                coloredString1 += Util.GenerateColoredString("s", pickupDef.baseColor);
             }
 
             recipientInventory.GiveItemPermanent(itemIndex, num);
